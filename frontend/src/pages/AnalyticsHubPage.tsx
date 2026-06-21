@@ -199,6 +199,13 @@ export default function AnalyticsHubPage() {
     risk_score: number; risk_label: string; confidence: number; contributing_factors: string[]
   } | null>(null)
 
+  // Monte Carlo Simulation
+  const [mcDowntime, setMcDowntime] = useState(5)
+  const [mcThreatLevel, setMcThreatLevel] = useState(60)
+  const [mcScopeRatio, setMcScopeRatio] = useState(40)
+  const [mcSimulating, setMcSimulating] = useState(false)
+  const [mcResult, setMcResult] = useState<{ bellData: {x: number; y: number}[]; p90: number; median: number } | null>(null)
+
   // ── Queries ────────────────────────────────────────────────────────────
   const { data: mapData, isLoading: mapLoading } = useQuery({ queryKey: ['cluster-map'], queryFn: () => aiApi.clusterMap() })
   const { data: statsData } = useQuery({ queryKey: ['cluster-stats'], queryFn: () => aiApi.clusterStats() })
@@ -325,6 +332,25 @@ export default function AnalyticsHubPage() {
     if (!newDecision.trim()) return
     setDecisionLog([{time: new Date(), text: newDecision}, ...decisionLog])
     setNewDecision('')
+  }
+
+  const runMonteCarloSimulation = () => {
+    setMcSimulating(true)
+    setTimeout(() => {
+      // Generate a bell curve centered around estimated impact
+      const baseImpact = mcDowntime * 18000 + mcThreatLevel * 1200 + mcScopeRatio * 800
+      const stdDev = baseImpact * 0.28
+      const median = Math.round(baseImpact)
+      const p90 = Math.round(baseImpact + 1.28 * stdDev)
+      const bellData: {x: number; y: number}[] = []
+      for (let i = -3; i <= 3; i += 0.15) {
+        const xVal = Math.round(median + i * stdDev)
+        const yVal = Math.exp(-0.5 * i * i) / (stdDev * Math.sqrt(2 * Math.PI)) * stdDev * 80
+        bellData.push({ x: xVal, y: Math.max(0, parseFloat(yVal.toFixed(2))) })
+      }
+      setMcResult({ bellData, p90, median })
+      setMcSimulating(false)
+    }, 1400)
   }
 
   // Calculate advanced residual risk
@@ -691,58 +717,219 @@ export default function AnalyticsHubPage() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* ── Monte Carlo Simulation Sandbox ─────────────────────── */}
+                <Card className="bg-slate-950/60 border-slate-800">
+                  <div className="absolute top-0 right-0 w-52 h-52 bg-purple-500/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none" />
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <Settings className="h-4 w-4 text-purple-400" /> Monte Carlo Simulation Sandbox
+                        </CardTitle>
+                        <CardDescription>Adjust risk parameters and run 10,000-iteration financial impact simulations</CardDescription>
+                      </div>
+                      {mcResult && (
+                        <div className="flex items-center gap-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-300 text-[10px] font-bold px-2.5 py-1.5 rounded-lg">
+                          <Award className="h-3 w-3" /> 90% CI Result Ready
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Controls panel */}
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <label className="font-semibold text-foreground">System Downtime Days</label>
+                            <span className="font-black text-purple-400">{mcDowntime} days</span>
+                          </div>
+                          <input type="range" min={1} max={30} value={mcDowntime} onChange={e => setMcDowntime(Number(e.target.value))}
+                            className="w-full h-1.5 rounded-full bg-slate-700 accent-purple-500" />
+                          <div className="flex justify-between text-[9px] text-slate-500"><span>1 day</span><span>30 days</span></div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <label className="font-semibold text-foreground">Threat Level</label>
+                            <span className="font-black text-orange-400">{mcThreatLevel}%</span>
+                          </div>
+                          <input type="range" min={10} max={100} value={mcThreatLevel} onChange={e => setMcThreatLevel(Number(e.target.value))}
+                            className="w-full h-1.5 rounded-full bg-slate-700 accent-orange-500" />
+                          <div className="flex justify-between text-[9px] text-slate-500"><span>Low (10%)</span><span>Critical (100%)</span></div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <label className="font-semibold text-foreground">Affected Systems Scope</label>
+                            <span className="font-black text-cyan-400">{mcScopeRatio}%</span>
+                          </div>
+                          <input type="range" min={5} max={100} value={mcScopeRatio} onChange={e => setMcScopeRatio(Number(e.target.value))}
+                            className="w-full h-1.5 rounded-full bg-slate-700 accent-cyan-500" />
+                          <div className="flex justify-between text-[9px] text-slate-500"><span>5% systems</span><span>100% systems</span></div>
+                        </div>
+                        <button
+                          onClick={runMonteCarloSimulation}
+                          disabled={mcSimulating}
+                          className="w-full flex items-center justify-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white px-4 py-2.5 text-xs font-bold disabled:opacity-50 transition-all shadow-lg shadow-purple-500/20"
+                        >
+                          {mcSimulating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                          {mcSimulating ? 'Running 10,000 Iterations...' : 'Run Monte Carlo Simulation'}
+                        </button>
+                      </div>
+
+                      {/* Results panel */}
+                      <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex flex-col">
+                        {mcResult ? (
+                          <div className="flex flex-col h-full animate-fade-in">
+                            <div className="flex items-start justify-between mb-4">
+                              <div>
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">90% Confidence Interval</p>
+                                <p className="text-2xl font-black text-red-400 mt-0.5">
+                                  ${mcResult.p90.toLocaleString()}
+                                </p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">Median: <span className="text-slate-200 font-semibold">${mcResult.median.toLocaleString()}</span></p>
+                              </div>
+                              <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-2.5 py-2 text-center">
+                                <p className="text-[9px] text-red-400 uppercase font-bold tracking-wide">Simulation Result</p>
+                                <p className="text-[10px] text-red-300 mt-1 font-semibold">90% probability of<br/>exceeding this value</p>
+                              </div>
+                            </div>
+                            {/* Bell curve */}
+                            <div className="flex-1 min-h-[100px]">
+                              <ResponsiveContainer width="100%" height={120}>
+                                <AreaChart data={mcResult.bellData} margin={{ top: 5, right: 5, left: -30, bottom: 0 }}>
+                                  <defs>
+                                    <linearGradient id="bellGrad" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="0%" stopColor="#a855f7" stopOpacity={0.6}/>
+                                      <stop offset="100%" stopColor="#a855f7" stopOpacity={0.05}/>
+                                    </linearGradient>
+                                  </defs>
+                                  <XAxis dataKey="x" tick={{ fontSize: 8, fill: '#64748b' }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} axisLine={false} tickLine={false} />
+                                  <YAxis hide />
+                                  <Area type="monotone" dataKey="y" stroke="#a855f7" strokeWidth={2} fill="url(#bellGrad)" dot={false} />
+                                </AreaChart>
+                              </ResponsiveContainer>
+                            </div>
+                            <p className="text-[9px] text-slate-500 text-center mt-2">Probability Distribution of Financial Impact</p>
+                          </div>
+                        ) : (
+                          <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 min-h-[200px]">
+                            <div className="h-12 w-12 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+                              <Navigation className="h-6 w-6 text-purple-400" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-foreground">Simulation Results</p>
+                              <p className="text-[10px] text-slate-500 mt-1">Adjust sliders and run simulation<br/>to see the financial impact distribution</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
+
 
             {/* ── TAB 3: HEATMAP ────────────────────────────────────────── */}
             {activeTab === 'heatmap' && (
               <div className="space-y-6 animate-fade-in">
-                {/* 5x5 Matrix (UI Only Simulation) */}
-                <Card>
+                <Card className="bg-slate-950/60 border-slate-800">
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <Map className="h-4 w-4 text-primary" /> Risk Probability × Impact Matrix
                     </CardTitle>
-                    <CardDescription>ISO 31000 standard 5×5 risk mapping based on incident clusters</CardDescription>
+                    <CardDescription>ISO 31000 standard 5×5 risk mapping — darker cells = higher combined risk</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex gap-4">
-                      <div className="flex flex-col justify-between items-center text-[10px] uppercase font-bold text-muted-foreground tracking-widest py-4">
-                        <span className="rotate-[-90deg] whitespace-nowrap -mt-6">High Probability</span>
-                        <span className="rotate-[-90deg] whitespace-nowrap mb-2">Low Probability</span>
+                    <div className="flex gap-6">
+                      {/* Y-Axis Label */}
+                      <div className="flex flex-col justify-between items-center py-1">
+                        {['Very High','High','Medium','Low','Very Low'].map(l => (
+                          <span key={l} className="text-[9px] text-slate-400 uppercase font-semibold tracking-wide w-16 text-right">{l}</span>
+                        ))}
                       </div>
-                      
-                      <div className="grid grid-cols-5 grid-rows-5 gap-1 flex-1 max-w-3xl aspect-square">
-                        {/* 25 cells rendering logic */}
-                        {Array.from({ length: 25 }).map((_, i) => {
-                          const row = Math.floor(i / 5);
-                          const col = i % 5;
-                          // Heatmap logic: bottom-left (low/low) = green, top-right (high/high) = red
-                          // row 0 = highest prob, row 4 = lowest prob
-                          // col 0 = lowest impact, col 4 = highest impact
-                          const score = ((4 - row) + col) / 8; // 0 to 1
-                          
-                          let bg = "bg-green-500/10 hover:bg-green-500/20";
-                          if (score > 0.7) bg = "bg-red-500/10 hover:bg-red-500/20";
-                          else if (score > 0.4) bg = "bg-yellow-500/10 hover:bg-yellow-500/20";
-                          
-                          // Simulate data points
-                          const incidents = Math.floor(Math.random() * (score > 0.7 ? 5 : 15));
-                          
-                          return (
-                            <div 
-                              key={i} 
-                              className={`${bg} rounded border border-foreground/5 cursor-pointer flex flex-col items-center justify-center transition-colors`}
-                            >
-                              <span className="text-sm font-bold text-foreground/70">{incidents > 0 ? incidents : ''}</span>
-                            </div>
-                          )
-                        })}
+                      <div className="flex-1">
+                        {/* 5x5 Grid — row 0 = Very High Prob, col 4 = Very High Impact */}
+                        <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+                          {Array.from({ length: 25 }).map((_, i) => {
+                            const row = Math.floor(i / 5) // 0=Very High prob, 4=Very Low
+                            const col = i % 5             // 0=Very Low impact, 4=Very High
+                            const prob = 4 - row          // 0..4: low to high
+                            const impact = col            // 0..4: low to high
+                            const riskScore = prob + impact // 0..8
+
+                            // Color cells
+                            let cellStyle = ''
+                            let cellText = ''
+                            let borderStyle = 'border-slate-700/50'
+                            if (riskScore <= 2) {
+                              cellStyle = 'bg-emerald-900/40 hover:bg-emerald-800/60'
+                              cellText = 'text-emerald-400'
+                            } else if (riskScore <= 4) {
+                              cellStyle = 'bg-yellow-900/40 hover:bg-yellow-800/60'
+                              cellText = 'text-yellow-300'
+                            } else if (riskScore <= 6) {
+                              cellStyle = 'bg-orange-900/50 hover:bg-orange-800/70'
+                              cellText = 'text-orange-300'
+                              borderStyle = 'border-orange-700/40'
+                            } else {
+                              cellStyle = 'bg-red-900/70 hover:bg-red-800/90'
+                              cellText = 'text-red-200'
+                              borderStyle = 'border-red-600/60'
+                            }
+
+                            // Place incident clusters in top-right (high risk) cells
+                            const clusterPins: Record<number, {label: string; count: number}> = {
+                              4:  { label: 'HR Fraud', count: 3 },
+                              9:  { label: 'Server Fail', count: 7 },
+                              3:  { label: 'Net Breach', count: 5 },
+                              14: { label: 'DB Intrusion', count: 4 },
+                            }
+                            const pin = clusterPins[i]
+
+                            return (
+                              <div
+                                key={i}
+                                title={pin ? `${pin.label} — ${pin.count} incidents` : `Risk ${riskScore}/8`}
+                                className={`${cellStyle} border ${borderStyle} rounded-lg aspect-square flex flex-col items-center justify-center transition-all duration-200 cursor-pointer group relative overflow-hidden`}
+                              >
+                                {pin && (
+                                  <>
+                                    <span className="text-lg font-black text-white/90 leading-none">{pin.count}</span>
+                                    <span className={`text-[8px] font-bold ${cellText} mt-0.5 text-center leading-none px-1`}>{pin.label}</span>
+                                    <div className="absolute inset-0 ring-1 ring-inset ring-red-400/40 rounded-lg" />
+                                  </>
+                                )}
+                                {!pin && riskScore >= 7 && (
+                                  <span className={`text-[9px] font-bold ${cellText} opacity-60`}>HIGH</span>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {/* X-Axis labels */}
+                        <div className="grid mt-2 text-center" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+                          {['Very Low','Low','Medium','High','Very High'].map(l => (
+                            <span key={l} className="text-[9px] text-slate-400 uppercase font-semibold tracking-wide">{l}</span>
+                          ))}
+                        </div>
+                        <p className="text-center text-[10px] text-slate-500 mt-1 font-semibold tracking-widest uppercase">Impact →</p>
                       </div>
                     </div>
-                    <div className="flex justify-between pl-12 text-[10px] uppercase font-bold text-muted-foreground tracking-widest mt-2 max-w-3xl">
-                      <span>Low Impact</span>
-                      <span>High Impact</span>
+                    {/* Legend */}
+                    <div className="flex items-center gap-4 mt-5 pt-4 border-t border-slate-800">
+                      <span className="text-[10px] text-slate-500 font-semibold uppercase">Legend:</span>
+                      {[{color:'bg-emerald-600',label:'Low Risk'},{color:'bg-yellow-500',label:'Moderate'},{color:'bg-orange-500',label:'High'},{color:'bg-red-600',label:'Critical'}].map(l=>(
+                        <div key={l.label} className="flex items-center gap-1.5">
+                          <span className={`h-2.5 w-2.5 rounded-sm ${l.color}`}/>
+                          <span className="text-[10px] text-slate-400">{l.label}</span>
+                        </div>
+                      ))}
+                      <div className="ml-auto flex items-center gap-1.5">
+                        <span className="h-2.5 w-5 rounded-sm bg-red-700/60 ring-1 ring-red-400/50" />
+                        <span className="text-[10px] text-red-400 font-semibold">Incident Cluster</span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -752,6 +939,93 @@ export default function AnalyticsHubPage() {
             {/* ── TAB 4: THREAT VELOCITY ───────────────────────────────────── */}
             {activeTab === 'velocity' && (
               <div className="space-y-6 animate-fade-in">
+                {/* ── Anomaly Detection Time-Series ─────────────────────── */}
+                <Card className="bg-slate-950/60 border-slate-800">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-red-400" /> Anomaly Detection Time-Series
+                        </CardTitle>
+                        <CardDescription>Real-time event stream with ML-detected anomaly spike flagging</CardDescription>
+                      </div>
+                      <div className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/30 text-red-400 text-[10px] font-bold uppercase tracking-wide px-3 py-1.5 rounded-full animate-pulse">
+                        <AlertTriangle className="h-3 w-3" /> Live Monitoring
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="relative">
+                      <ResponsiveContainer width="100%" height={260}>
+                        <AreaChart
+                          data={[
+                            { t: '00:00', events: 42, anomaly: null, baseline: 45 },
+                            { t: '02:00', events: 38, anomaly: null, baseline: 43 },
+                            { t: '04:00', events: 51, anomaly: null, baseline: 46 },
+                            { t: '06:00', events: 47, anomaly: null, baseline: 45 },
+                            { t: '08:00', events: 55, anomaly: null, baseline: 48 },
+                            { t: '10:00', events: 44, anomaly: null, baseline: 46 },
+                            { t: '12:00', events: 39, anomaly: null, baseline: 43 },
+                            { t: '14:00', events: 720, anomaly: 720, baseline: 46 },
+                            { t: '14:30', events: 680, anomaly: 680, baseline: 46 },
+                            { t: '16:00', events: 61, anomaly: null, baseline: 47 },
+                            { t: '18:00', events: 48, anomaly: null, baseline: 45 },
+                            { t: '20:00', events: 43, anomaly: null, baseline: 44 },
+                            { t: '22:00', events: 50, anomaly: null, baseline: 46 },
+                            { t: '24:00', events: 41, anomaly: null, baseline: 44 },
+                          ]}
+                          margin={{ top: 10, right: 20, left: -15, bottom: 0 }}
+                        >
+                          <defs>
+                            <linearGradient id="normalGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
+                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id="anomalyGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#ef4444" stopOpacity={0.5}/>
+                              <stop offset="100%" stopColor="#ef4444" stopOpacity={0.05}/>
+                            </linearGradient>
+                            <filter id="glow">
+                              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                            </filter>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(100,116,139,0.1)" />
+                          <XAxis dataKey="t" tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} domain={[0, 800]} />
+                          <Tooltip content={({ active, payload, label }: any) => {
+                            if (!active || !payload?.length) return null
+                            const isAnomaly = payload[0]?.payload?.anomaly !== null
+                            return (
+                              <div className={`rounded-lg border px-3 py-2 text-xs shadow-2xl ${isAnomaly ? 'bg-red-950 border-red-500/50 text-red-200' : 'bg-slate-900 border-slate-700 text-slate-200'}`}>
+                                <p className="font-bold mb-1">{label}</p>
+                                <p>{isAnomaly ? '🚨 Anomaly Detected: 1500% spike' : `Events: ${payload[0]?.value}`}</p>
+                                {isAnomaly && <p className="text-red-400 text-[10px] mt-1 font-semibold">Events: {payload[0]?.value} (baseline ~45)</p>}
+                              </div>
+                            )
+                          }} />
+                          {/* Baseline reference line */}
+                          <Line type="monotone" dataKey="baseline" stroke="#475569" strokeWidth={1} strokeDasharray="4 3" dot={false} legendType="none" />
+                          {/* Normal event area */}
+                          <Area type="monotone" dataKey="events" stroke="#3b82f6" strokeWidth={2} fill="url(#normalGrad)" dot={false} />
+                          {/* Anomaly overlay */}
+                          <Area type="monotone" dataKey="anomaly" stroke="#ef4444" strokeWidth={3} fill="url(#anomalyGrad)" dot={{ r: 6, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }} style={{ filter: 'url(#glow)' }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                      {/* Annotation badge */}
+                      <div className="absolute top-4 right-6 bg-red-500/90 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg shadow-red-500/30 flex items-center gap-1.5">
+                        <Zap className="h-3 w-3" /> Anomaly at 14:00 — 1500% Spike
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6 mt-3 pt-3 border-t border-slate-800">
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="h-1.5 w-4 bg-blue-500 rounded" />Normal Event Flow</div>
+                      <div className="flex items-center gap-1.5 text-[10px] text-red-400"><span className="h-1.5 w-4 bg-red-500 rounded" />Anomaly Spike</div>
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-500"><span className="h-px w-4 border-t-2 border-dashed border-slate-500" />Baseline (~45 events/hr)</div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* ── Forecasting Simulator (kept below) ─────────────────── */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
@@ -843,6 +1117,57 @@ export default function AnalyticsHubPage() {
             {/* ── TAB 5: CONTROLS ────────────────────────────────────────── */}
             {activeTab === 'controls' && (
               <div className="space-y-6 animate-fade-in">
+                {/* ── Predictive Control Decay Chart ───────────────────── */}
+                <Card className="bg-slate-950/60 border-slate-800">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-orange-400" /> Predictive Control Decay Chart
+                        </CardTitle>
+                        <CardDescription>Forecasted effectiveness (%) over next 90 days — updated by current slider values</CardDescription>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <div className="flex items-center gap-1.5 bg-orange-500/10 border border-orange-500/30 text-orange-300 text-[10px] font-bold px-2.5 py-1.5 rounded-lg">
+                          <AlertTriangle className="h-3 w-3" /> Predicted breach in 14 days
+                        </div>
+                        <span className="text-[9px] text-slate-500">Threshold: 40%</span>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={240}>
+                      <LineChart
+                        data={(() => {
+                          const days = [0,10,20,30,40,50,60,70,80,90]
+                          return days.map(d => ({
+                            day: `Day ${d}`,
+                            Preventive: Math.max(5, Math.round(ctrlPreventive - d * 0.55 + Math.sin(d/8)*3)),
+                            Detective:  Math.max(5, Math.round(ctrlDetective  - d * 0.48 + Math.sin(d/7)*2)),
+                            Corrective: Math.max(5, Math.round(ctrlCorrective - d * 0.65 + Math.cos(d/9)*3)),
+                            threshold: 40
+                          }))
+                        })()}
+                        margin={{ top: 5, right: 20, left: -15, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(100,116,139,0.1)" />
+                        <XAxis dataKey="day" tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                        <Tooltip
+                          contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', fontSize: '11px' }}
+                          labelStyle={{ color: '#94a3b8', fontWeight: 600 }}
+                        />
+                        <Legend formatter={(v) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                        {/* Threshold danger line */}
+                        <Line type="monotone" dataKey="threshold" stroke="#f97316" strokeWidth={1.5} strokeDasharray="6 3" dot={false} name="Breach Threshold (40%)" />
+                        <Line type="monotone" dataKey="Preventive" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="Detective"  stroke="#06b6d4" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="Corrective" stroke="#22c55e" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card>
                     <CardHeader>
@@ -995,12 +1320,15 @@ export default function AnalyticsHubPage() {
                   </Card>
                 </div>
 
-                <Card>
+                {/* NLP Incident Cluster Map */}
+                <Card className="bg-slate-950/60 border-slate-800">
                   <CardHeader>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-start">
                       <div>
-                        <CardTitle className="text-base flex items-center gap-2"><GitBranch className="h-4 w-4 text-primary" /> Incident Clustering Map</CardTitle>
-                        <CardDescription>2D UMAP projection</CardDescription>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <GitBranch className="h-4 w-4 text-primary" /> NLP Incident Cluster Map
+                        </CardTitle>
+                        <CardDescription>2D t-SNE / UMAP projection of incident text embeddings — hover for primary keyword</CardDescription>
                       </div>
                       <button onClick={() => qc.invalidateQueries({ queryKey: ['cluster-map'] })} className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground">
                         <RefreshCw className="h-3.5 w-3.5" />

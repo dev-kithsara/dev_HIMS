@@ -14,7 +14,7 @@ import LessonsLibraryPage  from '@/pages/LessonsLibraryPage'
 import RootCausePage        from '@/pages/RootCausePage'
 import SupportPage          from '@/pages/SupportPage'
 
-
+//Role-Based Access Control (RBAC) Guard Components
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const token = useAuthStore(s => s.token)
   return token ? <>{children}</> : <Navigate to="/login" replace />
