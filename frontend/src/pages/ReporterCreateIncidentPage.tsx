@@ -17,8 +17,8 @@ import { toast }    from '@/components/ui/toaster'
 import { useAuthStore } from '@/store/authStore'
 import type { Severity } from '@/types'
 
-const CATEGORIES  = ['Infrastructure', 'Security', 'Health & Safety', 'Software', 'Hardware', 'Process', 'Environmental', 'Other']
-const DEPARTMENTS = ['IT', 'Engineering', 'HR', 'Finance', 'Operations', 'Facilities', 'Legal', 'Management']
+const CATEGORIES  = ['Medication Error', 'Patient Fall', 'Surgical Complication', 'Infection Control', 'Equipment Failure', 'Diagnostic Error', 'Patient Identification', 'Documentation Error', 'Blood/Transfusion', 'Pressure Injury', 'Restraint/Elopement', 'Other']
+const DEPARTMENTS = ['Emergency Department', 'ICU', 'General Ward', 'Operating Theatre', 'Pharmacy', 'Radiology', 'Laboratory', 'Maternity', 'Outpatient Clinic', 'Administration', 'Facilities & Maintenance', 'Nursing']
 
 const SEV_OPTS = [
   { value: 'LOW',      label: 'Low — Minor issue, limited impact',           dot: 'bg-green-500',   color: 'border-green-500/30 bg-green-500/5  text-green-400' },

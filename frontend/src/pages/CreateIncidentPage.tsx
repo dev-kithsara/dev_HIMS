@@ -13,8 +13,8 @@ import { Badge } from '@/components/ui/badge'
 import { toast }    from '@/components/ui/toaster'
 import type { RiskPrediction, Severity } from '@/types'
 
-const CATEGORIES   = ['Infrastructure', 'Security', 'Health & Safety', 'Software', 'Hardware', 'Process', 'Environmental', 'Other']
-const DEPARTMENTS  = ['IT', 'Engineering', 'HR', 'Finance', 'Operations', 'Facilities', 'Legal', 'Management']
+const CATEGORIES  = ['Medication Error', 'Patient Fall', 'Surgical Complication', 'Infection Control', 'Equipment Failure', 'Diagnostic Error', 'Patient Identification', 'Documentation Error', 'Blood/Transfusion', 'Pressure Injury', 'Restraint/Elopement', 'Other']
+const DEPARTMENTS = ['Emergency Department', 'ICU', 'General Ward', 'Operating Theatre', 'Pharmacy', 'Radiology', 'Laboratory', 'Maternity', 'Outpatient Clinic', 'Administration', 'Facilities & Maintenance', 'Nursing']
 
 export default function CreateIncidentPage() {
   const navigate     = useNavigate()
@@ -26,15 +26,9 @@ export default function CreateIncidentPage() {
   const [category,    setCategory]    = useState('')
   const [department,  setDepartment]  = useState('')
   const [location,    setLocation]    = useState('')
-  const [investigatorId, setInvestigatorId] = useState('')
   const [riskPreview, setRiskPreview] = useState<RiskPrediction | null>(null)
   const [riskLoading, setRiskLoading] = useState(false)
 
-  const { data: usersData } = useQuery({
-    queryKey: ['users'],
-    queryFn:  () => usersApi.list(),
-  })
-  const investigators = (usersData?.data.data ?? []).filter((u: any) => u.role === 'investigator' && u.isActive)
 
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [recLoading, setRecLoading] = useState(false)
@@ -69,7 +63,6 @@ export default function CreateIncidentPage() {
       category,
       department,
       location,
-      investigatorId: investigatorId && investigatorId !== 'none' ? parseInt(investigatorId) : null
     }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['incidents'] })
@@ -123,7 +116,7 @@ export default function CreateIncidentPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Report New Incident</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Report New Clinical Incident</h1>
           <p className="text-sm text-muted-foreground">Fill in the details to log a new incident</p>
         </div>
       </div>
@@ -206,26 +199,10 @@ export default function CreateIncidentPage() {
                     id="location"
                     value={location}
                     onChange={e => setLocation(e.target.value)}
-                    placeholder="e.g. Server Room B, Floor 3"
+                    placeholder="e.g. Ward 3B, Bed 12, ICU Bay 4"
                   />
                 </div>
 
-                <div className="space-y-2 col-span-2">
-                  <Label>Assign Investigator</Label>
-                  <Select value={investigatorId} onValueChange={setInvestigatorId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select investigator (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Investigator (Unassigned)</SelectItem>
-                      {investigators.map(u => (
-                        <SelectItem key={u.id} value={String(u.id)}>
-                          {u.name} ({u.email})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
             </CardContent>
           </Card>

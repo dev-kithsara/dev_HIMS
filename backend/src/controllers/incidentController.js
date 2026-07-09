@@ -5,13 +5,12 @@ const prisma  = new PrismaClient();
 
 // ── Schemas ────────────────────────────────────────────────────────────────
 const incidentSchema = z.object({
-  title:          z.string().min(5).max(255),
-  description:    z.string().min(10),
-  severity:       z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
-  category:       z.string().optional(),
-  location:       z.string().optional(),
-  department:     z.string().optional(),
-  investigatorId: z.number().int().optional().nullable()
+  title:       z.string().min(5).max(255),
+  description: z.string().min(10),
+  severity:    z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  category:    z.string().optional(),
+  location:    z.string().optional(),
+  department:  z.string().optional(),
 });
 
 const actionSchema = z.object({
@@ -31,7 +30,7 @@ const investigationSchema = z.object({
 });
 
 const rootCauseSchema = z.object({
-  rootCauseCategory:   z.enum(['Human Error', 'System Failure', 'Process Gap', 'External Factor', 'Equipment Failure', 'Unknown']),
+  rootCauseCategory:   z.enum(['Human Error', 'System/Technology Failure', 'Process/Protocol Gap', 'Communication Failure', 'Equipment/Device Failure', 'Environmental Factor', 'Training Deficiency', 'Unknown']),
   description:         z.string().min(10),
   contributingFactors: z.string().optional(),
   causalChain:         z.string().optional()
@@ -84,20 +83,32 @@ const notifyAI = async (incidentId) => {
   }
 };
 
+// ── Role-based where clause builder ────────────────────────────────────────
+const buildRoleWhere = (user) => {
+  const where = { deletedAt: null };
+  if (user.role === 'department_manager') {
+    if (user.department) where.department = user.department;
+  } else if (user.role === 'investigator') {
+    where.investigation = { investigatedBy: user.id };
+  } else if (user.role === 'action_owner') {
+    where.actions = { some: { assignedTo: user.id } };
+  } else if (user.role === 'staff') {
+    where.reportedBy = user.id;
+  }
+  // admin sees all — no extra filter
+  return where;
+};
+
 // ── List ───────────────────────────────────────────────────────────────────
 exports.list = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, search, status, severity, department, category } = req.query;
     const skip  = (parseInt(page) - 1) * parseInt(limit);
-    const where = { deletedAt: null };
-
-    if (req.user.role === 'investigator') {
-      where.investigation = { investigatedBy: req.user.id };
-    }
+    const where = buildRoleWhere(req.user);
 
     if (status)     where.status     = status;
     if (severity)   where.severity   = severity;
-    if (department) where.department = department;
+    if (department && req.user.role === 'admin') where.department = department;
     if (category)   where.category   = category;
     if (search) {
       where.OR = [
@@ -136,9 +147,8 @@ exports.listLessonsLearned = async (req, res, next) => {
       status: 'CLOSED',
       deletedAt: null,
       closure: {
-        isNot: null,
-        lessonsLearned: {
-          not: ''
+        is: {
+          lessonsLearned: { not: '' }
         }
       }
     };
@@ -147,7 +157,7 @@ exports.listLessonsLearned = async (req, res, next) => {
       where.OR = [
         { title:       { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
-        { closure: { lessonsLearned: { contains: search, mode: 'insensitive' } } }
+        { closure: { is: { lessonsLearned: { contains: search, mode: 'insensitive' } } } }
       ];
     }
 
@@ -155,9 +165,9 @@ exports.listLessonsLearned = async (req, res, next) => {
       where,
       orderBy: { updatedAt: 'desc' },
       include: {
-        closure: true,
+        closure:   true,
         rootCause: true,
-        reporter: { select: { id: true, name: true } }
+        reporter:  { select: { id: true, name: true } }
       }
     });
 
@@ -168,19 +178,11 @@ exports.listLessonsLearned = async (req, res, next) => {
 // ── Create ─────────────────────────────────────────────────────────────────
 exports.create = async (req, res, next) => {
   try {
-    const { investigatorId, ...incidentData } = incidentSchema.parse(req.body);
+    const incidentData = incidentSchema.parse(req.body);
     const incident = await prisma.incident.create({
       data: { ...incidentData, reportedBy: req.user.id, status: 'OPEN' },
       include: { reporter: { select: { id: true, name: true } } }
     });
-    if (investigatorId) {
-      await prisma.incidentInvestigation.create({
-        data: {
-          incidentId: incident.id,
-          investigatedBy: investigatorId
-        }
-      });
-    }
     // Kick off AI embedding immediately (fire-and-forget)
     notifyAI(incident.id);
     res.status(201).json({ data: incident });
@@ -215,7 +217,6 @@ exports.update = async (req, res, next) => {
       return res.status(422).json({ error: 'Cannot edit a closed incident' });
     }
     const data    = incidentSchema.partial().parse(req.body);
-    // Reset ai_processed so the embedding gets regenerated with new content
     const updated = await prisma.incident.update({ where: { id: inc.id }, data: { ...data, aiProcessed: false } });
     notifyAI(inc.id);
     res.json({ data: updated });
@@ -228,7 +229,7 @@ exports.softDelete = async (req, res, next) => {
     await getIncidentOrFail(req.params.id);
     await prisma.incident.update({
       where: { id: parseInt(req.params.id) },
-      data: { deletedAt: new Date() }
+      data:  { deletedAt: new Date() }
     });
     res.json({ message: 'Incident deleted successfully' });
   } catch (err) { next(err); }
@@ -237,10 +238,7 @@ exports.softDelete = async (req, res, next) => {
 // ── Export CSV ─────────────────────────────────────────────────────────────
 exports.exportCsv = async (req, res, next) => {
   try {
-    const where = { deletedAt: null };
-    if (req.user.role === 'investigator') {
-      where.investigation = { investigatedBy: req.user.id };
-    }
+    const where = buildRoleWhere(req.user);
     const incidents = await prisma.incident.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -252,7 +250,7 @@ exports.exportCsv = async (req, res, next) => {
       `"${(i.title || '').replace(/"/g, '""')}"`,
       i.severity,
       i.status,
-      i.category  || '',
+      i.category   || '',
       i.department || '',
       i.reporter?.name || '',
       i.createdAt.toISOString()
@@ -272,10 +270,6 @@ exports.addAction = async (req, res, next) => {
     const action = await prisma.incidentAction.create({
       data: { ...data, incidentId: parseInt(req.params.id) }
     });
-    await prisma.incident.update({
-      where: { id: parseInt(req.params.id) },
-      data:  { status: 'IN_PROGRESS' }
-    });
     res.status(201).json({ data: action });
   } catch (err) { next(err); }
 };
@@ -293,9 +287,17 @@ exports.getActions = async (req, res, next) => {
 
 exports.updateAction = async (req, res, next) => {
   try {
+    // action_owner can only update their own assigned actions
+    const actionId = parseInt(req.params.aId);
+    if (req.user.role === 'action_owner') {
+      const action = await prisma.incidentAction.findUnique({ where: { id: actionId } });
+      if (!action || action.assignedTo !== req.user.id) {
+        return res.status(403).json({ error: 'You can only update actions assigned to you' });
+      }
+    }
     const data   = actionSchema.partial().parse(req.body);
     const action = await prisma.incidentAction.update({
-      where: { id: parseInt(req.params.aId) },
+      where: { id: actionId },
       data
     });
     res.json({ data: action });
@@ -430,7 +432,6 @@ exports.closeIncident = async (req, res, next) => {
       where: { id: inc.id },
       data:  { status: 'CLOSED', aiProcessed: false }
     });
-    // Notify AI service asynchronously (fire-and-forget)
     notifyAI(inc.id);
     res.json({ data: closure, message: 'Incident closed successfully' });
   } catch (err) { next(err); }
@@ -461,10 +462,10 @@ exports.getTimeline = async (req, res, next) => {
 
     const timeline = [];
     if (inc)     timeline.push({ type: 'CREATED',      date: inc.createdAt,      data: { title: inc.title, severity: inc.severity } });
-    actions.forEach(a => timeline.push({ type: 'ACTION',       date: a.createdAt,       data: { action: a.actionTaken, status: a.status } }));
+    actions.forEach(a => timeline.push({ type: 'ACTION',       date: a.createdAt,      data: { action: a.actionTaken, status: a.status } }));
     if (inv)     timeline.push({ type: 'INVESTIGATION', date: inv.createdAt,     data: { findings: inv.findings } });
     if (rc)      timeline.push({ type: 'ROOT_CAUSE',   date: rc.createdAt,       data: { category: rc.rootCauseCategory } });
-    controls.forEach(c => timeline.push({ type: 'CONTROL',     date: c.createdAt,       data: { type: c.controlType } }));
+    controls.forEach(c => timeline.push({ type: 'CONTROL',     date: c.createdAt,      data: { type: c.controlType } }));
     if (review)  timeline.push({ type: 'REVIEWED',     date: review.createdAt,   data: { rating: review.effectivenessRating } });
     if (closure) timeline.push({ type: 'CLOSED',       date: closure.createdAt,  data: { summary: closure.closureSummary } });
 
@@ -473,77 +474,55 @@ exports.getTimeline = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// ── Analytics ─────────────────────────────────────────────────────────────
 exports.getRootCauseAnalytics = async (req, res, next) => {
   try {
     const { startDate, endDate, department, severity } = req.query;
 
     const where = {
       deletedAt: null,
-      rootCause: {
-        isNot: null
-      }
+      rootCause: { isNot: null }
     };
 
-    if (department) {
+    // department_manager can only see their dept
+    if (req.user.role === 'department_manager' && req.user.department) {
+      where.department = req.user.department;
+    } else if (department) {
       where.department = department;
     }
-    if (severity) {
-      where.severity = severity;
-    }
+    if (severity) where.severity = severity;
     if (startDate || endDate) {
       where.createdAt = {};
-      if (startDate) {
-        where.createdAt.gte = new Date(startDate);
-      }
-      if (endDate) {
-        where.createdAt.lte = new Date(endDate);
-      }
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate)   where.createdAt.lte = new Date(endDate);
     }
 
     const incidents = await prisma.incident.findMany({
       where,
-      include: {
-        rootCause: true
-      }
+      include: { rootCause: true }
     });
 
     const totalIncidents = incidents.length;
-
     const categoriesMap = {};
     incidents.forEach(inc => {
       const cat = inc.rootCause.rootCauseCategory || 'Unknown';
       if (!categoriesMap[cat]) {
-        categoriesMap[cat] = {
-          category: cat,
-          count: 0,
-          subcategories: {},
-          incidents: []
-        };
+        categoriesMap[cat] = { category: cat, count: 0, subcategories: {}, incidents: [] };
       }
       categoriesMap[cat].count++;
-      
       const sub = inc.category || 'Unassigned';
-      if (!categoriesMap[cat].subcategories[sub]) {
-        categoriesMap[cat].subcategories[sub] = 0;
-      }
+      if (!categoriesMap[cat].subcategories[sub]) categoriesMap[cat].subcategories[sub] = 0;
       categoriesMap[cat].subcategories[sub]++;
-
       categoriesMap[cat].incidents.push({
-        id: inc.id,
-        title: inc.title,
-        severity: inc.severity,
-        department: inc.department,
-        category: inc.category,
-        createdAt: inc.createdAt
+        id: inc.id, title: inc.title, severity: inc.severity,
+        department: inc.department, category: inc.category, createdAt: inc.createdAt
       });
     });
 
     const distribution = Object.values(categoriesMap).map(item => {
-      const subList = Object.entries(item.subcategories).map(([name, count]) => ({
-        name,
-        count
-      })).sort((a, b) => b.count - a.count);
-
+      const subList = Object.entries(item.subcategories)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count);
       return {
         category: item.category,
         count: item.count,
@@ -554,26 +533,18 @@ exports.getRootCauseAnalytics = async (req, res, next) => {
     }).sort((a, b) => b.count - a.count);
 
     const now = new Date();
-    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const ninetyDaysAgo    = new Date(now.getTime() - 90  * 24 * 60 * 60 * 1000);
     const oneEightyDaysAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
 
-    const trendWhere = {
-      deletedAt: null,
-      rootCause: { isNot: null }
-    };
-    if (department) trendWhere.department = department;
-    if (severity) trendWhere.severity = severity;
-
     const allIncidentsForTrends = await prisma.incident.findMany({
-      where: trendWhere,
+      where: { deletedAt: null, rootCause: { isNot: null } },
       include: { rootCause: true }
     });
 
     const recentCounts = {};
-    const priorCounts = {};
-
+    const priorCounts  = {};
     allIncidentsForTrends.forEach(inc => {
-      const cat = inc.rootCause.rootCauseCategory || 'Unknown';
+      const cat     = inc.rootCause.rootCauseCategory || 'Unknown';
       const created = new Date(inc.createdAt);
       if (created >= ninetyDaysAgo) {
         recentCounts[cat] = (recentCounts[cat] || 0) + 1;
@@ -582,70 +553,46 @@ exports.getRootCauseAnalytics = async (req, res, next) => {
       }
     });
 
-    let highestIncreaseCategory = 'None';
+    let highestIncreaseCategory   = 'None';
     let highestIncreasePercentage = 0;
-
     Object.keys(recentCounts).forEach(cat => {
       const recent = recentCounts[cat] || 0;
-      const prior = priorCounts[cat] || 0;
+      const prior  = priorCounts[cat]  || 0;
       let pct = 0;
-      if (prior > 0) {
-        pct = Math.round(((recent - prior) / prior) * 100);
-      } else if (recent > 0) {
-        pct = 100;
-      }
+      if (prior > 0)       pct = Math.round(((recent - prior) / prior) * 100);
+      else if (recent > 0) pct = 100;
       if (pct > highestIncreasePercentage) {
         highestIncreasePercentage = pct;
-        highestIncreaseCategory = cat;
+        highestIncreaseCategory   = cat;
       }
     });
 
     const mostCommonRootCause = distribution.length > 0 ? distribution[0].category : 'None';
-
     res.json({
       data: {
-        totalIncidents,
-        mostCommonRootCause,
-        highestIncrease: {
-          category: highestIncreaseCategory,
-          percentage: highestIncreasePercentage
-        },
+        totalIncidents, mostCommonRootCause,
+        highestIncrease: { category: highestIncreaseCategory, percentage: highestIncreasePercentage },
         distribution
       }
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 exports.getControlEffectiveness = async (req, res, next) => {
   try {
     const incidents = await prisma.incident.findMany({
-      where: {
-        deletedAt: null,
-        controls: {
-          some: {}
-        }
-      },
-      include: {
-        controls: true,
-        review: true
-      }
+      where: { deletedAt: null, controls: { some: {} } },
+      include: { controls: true, review: true }
     });
 
-    const departments = ['IT', 'HR', 'Finance', 'Operations', 'Facilities', 'Security'];
+    const departments  = ['Emergency Department', 'ICU', 'General Ward', 'Operating Theatre', 'Pharmacy', 'Radiology'];
     const controlTypes = ['Preventive', 'Detective', 'Corrective'];
 
     const grid = {};
     departments.forEach(dept => {
       grid[dept] = {};
       controlTypes.forEach(type => {
-        grid[dept][type] = {
-          sum: 0,
-          count: 0,
-          avg: 0,
-          incidents: []
-        };
+        grid[dept][type] = { sum: 0, count: 0, avg: 0, incidents: [] };
       });
     });
 
@@ -657,21 +604,16 @@ exports.getControlEffectiveness = async (req, res, next) => {
           grid[dept][type] = { sum: 0, count: 0, avg: 0, incidents: [] };
         });
       }
-
       const rating = inc.review?.effectivenessRating;
-
       inc.controls.forEach(ctrl => {
         const type = ctrl.controlType;
         if (grid[dept][type]) {
           if (rating !== null && rating !== undefined) {
-            grid[dept][type].sum += rating;
+            grid[dept][type].sum   += rating;
             grid[dept][type].count += 1;
           }
           grid[dept][type].incidents.push({
-            id: inc.id,
-            title: inc.title,
-            severity: inc.severity,
-            rating: rating || 'Unrated'
+            id: inc.id, title: inc.title, severity: inc.severity, rating: rating || 'Unrated'
           });
         }
       });
@@ -683,75 +625,105 @@ exports.getControlEffectiveness = async (req, res, next) => {
         const cell = grid[dept][type];
         cell.avg = cell.count > 0 ? parseFloat((cell.sum / cell.count).toFixed(1)) : 0;
         data.push({
-          department: dept,
-          controlType: type,
-          averageRating: cell.avg,
-          totalControls: cell.incidents.length,
-          ratedControls: cell.count,
-          incidents: cell.incidents.slice(0, 5)
+          department: dept, controlType: type,
+          averageRating: cell.avg, totalControls: cell.incidents.length,
+          ratedControls: cell.count, incidents: cell.incidents.slice(0, 5)
         });
       });
     });
 
     res.json({ data });
-  } catch (err) {
-    next(err);
-  }
-};
-
-// ── Submit/Approve/Reject Investigation ──────────────────────────────────────
-exports.submitInvestigation = async (req, res, next) => {
-  try {
-    const inc = await getIncidentOrFail(req.params.id);
-    const inv = await prisma.incidentInvestigation.findUnique({
-      where: { incidentId: inc.id }
-    });
-    if (req.user.role === 'investigator' && inv?.investigatedBy !== req.user.id) {
-      return res.status(403).json({ error: 'You are not assigned to this incident' });
-    }
-
-    const updated = await prisma.incident.update({
-      where: { id: inc.id },
-      data: {
-        status: 'UNDER_REVIEW',
-        isRejected: false,
-        rejectionComment: null
-      }
-    });
-    res.json({ data: updated, message: 'Investigation submitted for review' });
   } catch (err) { next(err); }
 };
 
-exports.rejectInvestigation = async (req, res, next) => {
+// ── NEW: Accept Incident (OPEN → ACCEPTED) ────────────────────────────────
+exports.acceptIncident = async (req, res, next) => {
   try {
     const inc = await getIncidentOrFail(req.params.id);
+    if (inc.status !== 'OPEN') {
+      return res.status(422).json({ error: 'Only OPEN incidents can be accepted' });
+    }
+    if (req.user.role === 'department_manager' && req.user.department && inc.department && inc.department !== req.user.department) {
+      return res.status(403).json({ error: 'Access denied: incident is not in your department' });
+    }
+    const updated = await prisma.incident.update({
+      where: { id: inc.id },
+      data:  { status: 'ACCEPTED', isRejected: false, rejectionComment: null }
+    });
+    res.json({ data: updated, message: 'Incident accepted successfully' });
+  } catch (err) { next(err); }
+};
+
+// ── NEW: Reject Incident (OPEN → REJECTED) ────────────────────────────────
+exports.rejectIncident = async (req, res, next) => {
+  try {
+    const inc = await getIncidentOrFail(req.params.id);
+    if (inc.status !== 'OPEN') {
+      return res.status(422).json({ error: 'Only OPEN incidents can be rejected' });
+    }
+    if (req.user.role === 'department_manager' && req.user.department && inc.department && inc.department !== req.user.department) {
+      return res.status(403).json({ error: 'Access denied: incident is not in your department' });
+    }
     const { comment } = req.body;
-    if (!comment) {
-      return res.status(400).json({ error: 'Rejection comment is required' });
-    }
+    if (!comment) return res.status(400).json({ error: 'Rejection comment is required' });
     const updated = await prisma.incident.update({
       where: { id: inc.id },
-      data: {
-        status: 'IN_PROGRESS',
-        isRejected: true,
-        rejectionComment: comment
-      }
+      data:  { status: 'REJECTED', isRejected: true, rejectionComment: comment }
     });
-    res.json({ data: updated, message: 'Investigation rejected successfully' });
+    res.json({ data: updated, message: 'Incident rejected' });
   } catch (err) { next(err); }
 };
 
-exports.approveInvestigation = async (req, res, next) => {
+// ── NEW: Assign Investigator (ACCEPTED → INVESTIGATING) ───────────────────
+exports.assignInvestigator = async (req, res, next) => {
   try {
     const inc = await getIncidentOrFail(req.params.id);
+    if (inc.status !== 'ACCEPTED') {
+      return res.status(422).json({ error: 'Incident must be ACCEPTED before assigning an investigator' });
+    }
+    if (req.user.role === 'department_manager' && req.user.department && inc.department && inc.department !== req.user.department) {
+      return res.status(403).json({ error: 'Access denied: incident is not in your department' });
+    }
+    const { investigatorId } = req.body;
+    if (!investigatorId) return res.status(400).json({ error: 'investigatorId is required' });
+    await prisma.incidentInvestigation.upsert({
+      where:  { incidentId: inc.id },
+      update: { investigatedBy: parseInt(investigatorId) },
+      create: { incidentId: inc.id, investigatedBy: parseInt(investigatorId) }
+    });
     const updated = await prisma.incident.update({
       where: { id: inc.id },
-      data: {
-        isRejected: false,
-        rejectionComment: null
-      }
+      data:  { status: 'INVESTIGATING' }
     });
-    res.json({ data: updated, message: 'Investigation approved' });
+    res.json({ data: updated, message: 'Investigator assigned successfully' });
   } catch (err) { next(err); }
 };
 
+// ── NEW: Assign Action Owner (INVESTIGATING → PENDING_ACTION) ─────────────
+exports.assignActionOwner = async (req, res, next) => {
+  try {
+    const inc = await getIncidentOrFail(req.params.id);
+    if (inc.status !== 'INVESTIGATING') {
+      return res.status(422).json({ error: 'Incident must be in INVESTIGATING status to assign an action owner' });
+    }
+    if (req.user.role === 'department_manager' && req.user.department && inc.department && inc.department !== req.user.department) {
+      return res.status(403).json({ error: 'Access denied: incident is not in your department' });
+    }
+    const { actionOwnerId, actionDescription } = req.body;
+    if (!actionOwnerId) return res.status(400).json({ error: 'actionOwnerId is required' });
+    await prisma.incidentAction.create({
+      data: {
+        incidentId:  inc.id,
+        actionTaken: actionDescription || 'Implement corrective actions as per investigation findings',
+        assignedTo:  parseInt(actionOwnerId),
+        priority:    'HIGH',
+        status:      'PENDING'
+      }
+    });
+    const updated = await prisma.incident.update({
+      where: { id: inc.id },
+      data:  { status: 'PENDING_ACTION' }
+    });
+    res.json({ data: updated, message: 'Action owner assigned successfully' });
+  } catch (err) { next(err); }
+};

@@ -25,14 +25,14 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   return user?.role === 'admin' ? <>{children}</> : <Navigate to="/dashboard" replace />
 }
 
-const AdminOrAnalystRoute = ({ children }: { children: React.ReactNode }) => {
+const ManagerOrAdminRoute = ({ children }: { children: React.ReactNode }) => {
   const user = useAuthStore(s => s.user)
-  return (user?.role === 'admin' || user?.role === 'risk_analyst') ? <>{children}</> : <Navigate to="/dashboard" replace />
+  return (user?.role === 'admin' || user?.role === 'department_manager') ? <>{children}</> : <Navigate to="/dashboard" replace />
 }
 
-const ReporterOnlyRoute = ({ children }: { children: React.ReactNode }) => {
+const StaffOnlyRoute = ({ children }: { children: React.ReactNode }) => {
   const user = useAuthStore(s => s.user)
-  return user?.role === 'reporter' ? <>{children}</> : <Navigate to="/dashboard" replace />
+  return user?.role === 'staff' ? <>{children}</> : <Navigate to="/dashboard" replace />
 }
 
 export default function App() {
@@ -65,9 +65,9 @@ export default function App() {
 
         <Route path="/incidents/new" element={
           <ProtectedRoute>
-            <ReporterOnlyRoute>
+            <StaffOnlyRoute>
               <Layout><ReporterCreateIncidentPage /></Layout>
-            </ReporterOnlyRoute>
+            </StaffOnlyRoute>
           </ProtectedRoute>
         } />
 
@@ -79,9 +79,9 @@ export default function App() {
 
         <Route path="/analytics" element={
           <ProtectedRoute>
-            <AdminOrAnalystRoute>
+            <ManagerOrAdminRoute>
               <Layout><AnalyticsHubPage /></Layout>
-            </AdminOrAnalystRoute>
+            </ManagerOrAdminRoute>
           </ProtectedRoute>
         } />
 

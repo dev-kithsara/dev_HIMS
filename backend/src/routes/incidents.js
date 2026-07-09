@@ -6,55 +6,56 @@ router.use(authenticate);
 
 // Core CRUD
 router.get('/',       ctrl.list);
-router.post('/',      authorize('admin', 'incident_manager', 'reporter'), ctrl.create);
+router.post('/',      authorize('admin', 'staff'), ctrl.create);
 router.get('/export', ctrl.exportCsv);
 router.get('/lessons-learned', ctrl.listLessonsLearned);
 router.get('/root-cause-analytics', ctrl.getRootCauseAnalytics);
 router.get('/control-effectiveness', ctrl.getControlEffectiveness);
 router.get('/:id',    ctrl.getById);
-router.put('/:id',    authorize('admin', 'incident_manager', 'investigator'), ctrl.update);
-router.delete('/:id', authorize('admin', 'incident_manager'), ctrl.softDelete);
+router.put('/:id',    authorize('admin', 'department_manager'), ctrl.update);
+router.delete('/:id', authorize('admin', 'department_manager'), ctrl.softDelete);
 
-// Object 2: Actions
-router.post('/:id/actions',     authorize('admin', 'incident_manager', 'investigator', 'reporter'), ctrl.addAction);
+// ── Lifecycle transitions (manager/admin only) ─────────────────────────────
+router.post('/:id/accept',               authorize('admin', 'department_manager'), ctrl.acceptIncident);
+router.post('/:id/reject',               authorize('admin', 'department_manager'), ctrl.rejectIncident);
+router.post('/:id/assign-investigator',  authorize('admin', 'department_manager'), ctrl.assignInvestigator);
+router.post('/:id/assign-action-owner',  authorize('admin', 'department_manager'), ctrl.assignActionOwner);
+
+// ── Actions ────────────────────────────────────────────────────────────────
+router.post('/:id/actions',     authorize('admin', 'department_manager'), ctrl.addAction);
 router.get('/:id/actions',      ctrl.getActions);
-router.put('/:id/actions/:aId', authorize('admin', 'incident_manager', 'investigator'), ctrl.updateAction);
+router.put('/:id/actions/:aId', authorize('admin', 'department_manager', 'action_owner'), ctrl.updateAction);
 
-// Object 3: Investigation
-const multer = require('multer');
-const path = require('path');
+// ── Investigation (investigator documents findings) ────────────────────────
+const multer  = require('multer');
+const path    = require('path');
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, '../../uploads')),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+  filename:    (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
 });
 const upload = multer({ storage });
 
-router.post('/:id/investigation', authorize('admin', 'incident_manager', 'investigator'), ctrl.addInvestigation);
-router.get('/:id/investigation',  ctrl.getInvestigation);
-router.post('/:id/upload-evidence', authorize('admin', 'incident_manager', 'investigator'), upload.array('files'), ctrl.uploadEvidence);
+router.post('/:id/investigation',   authorize('admin', 'investigator'), ctrl.addInvestigation);
+router.get('/:id/investigation',    ctrl.getInvestigation);
+router.post('/:id/upload-evidence', authorize('admin', 'investigator'), upload.array('files'), ctrl.uploadEvidence);
 
-// Object 4: Root Cause
-router.post('/:id/root-cause', authorize('admin', 'incident_manager', 'investigator'), ctrl.addRootCause);
+// ── Root Cause (investigator documents) ───────────────────────────────────
+router.post('/:id/root-cause', authorize('admin', 'investigator'), ctrl.addRootCause);
 router.get('/:id/root-cause',  ctrl.getRootCause);
 
-// Object 5: Controls
-router.post('/:id/controls', authorize('admin', 'incident_manager', 'investigator', 'risk_analyst'), ctrl.addControl);
+// ── Controls ───────────────────────────────────────────────────────────────
+router.post('/:id/controls', authorize('admin', 'department_manager', 'investigator'), ctrl.addControl);
 router.get('/:id/controls',  ctrl.getControls);
 
-// Object 6: Review
-router.post('/:id/review', authorize('admin', 'incident_manager'), ctrl.addReview);
+// ── Review ─────────────────────────────────────────────────────────────────
+router.post('/:id/review', authorize('admin', 'department_manager'), ctrl.addReview);
 router.get('/:id/review',  ctrl.getReview);
 
-// Investigation workflow routes
-router.post('/:id/submit-investigation', authorize('admin', 'incident_manager', 'investigator'), ctrl.submitInvestigation);
-router.post('/:id/reject-investigation', authorize('admin', 'incident_manager'), ctrl.rejectInvestigation);
-router.post('/:id/approve-investigation', authorize('admin', 'incident_manager'), ctrl.approveInvestigation);
-
-// Object 7: Close
-router.post('/:id/close', authorize('admin', 'incident_manager'), ctrl.closeIncident);
+// ── Close ──────────────────────────────────────────────────────────────────
+router.post('/:id/close', authorize('admin', 'department_manager'), ctrl.closeIncident);
 router.get('/:id/close',  ctrl.getClosure);
 
-// Timeline
+// ── Timeline ───────────────────────────────────────────────────────────────
 router.get('/:id/timeline', ctrl.getTimeline);
 
 module.exports = router;

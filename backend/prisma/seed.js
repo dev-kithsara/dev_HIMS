@@ -1,340 +1,382 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
-
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding database with real-world incident data...');
-  const hashedPassword = await bcrypt.hash('Admin@123', 10);
+  console.log('🌱 Seeding HMS database with hospital incident data...');
+  const pw = await bcrypt.hash('Admin@123', 10);
 
-  // ── Users ──────────────────────────────────────────────────────────────────
+  // ── Users ──────────────────────────────────────────────────────────────
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@ims.com' },
-    update: { password: hashedPassword },
-    create: { name: 'System Admin', email: 'admin@ims.com', password: hashedPassword, role: 'admin' }
+    where:  { email: 'admin@hms.com' },
+    update: { password: pw },
+    create: { name: 'System Admin', email: 'admin@hms.com', password: pw, role: 'admin' }
   });
-  const manager = await prisma.user.upsert({
-    where: { email: 'manager@ims.com' },
-    update: { password: hashedPassword },
-    create: { name: 'Sarah Johnson', email: 'manager@ims.com', password: hashedPassword, role: 'incident_manager' }
+  const managerICU = await prisma.user.upsert({
+    where:  { email: 'manager.icu@hms.com' },
+    update: { password: pw },
+    create: { name: 'Dr. Sarah Johnson', email: 'manager.icu@hms.com', password: pw, role: 'department_manager', department: 'ICU' }
+  });
+  const managerED = await prisma.user.upsert({
+    where:  { email: 'manager.ed@hms.com' },
+    update: { password: pw },
+    create: { name: 'Dr. Michael Chen', email: 'manager.ed@hms.com', password: pw, role: 'department_manager', department: 'Emergency Department' }
   });
   const investigator = await prisma.user.upsert({
-    where: { email: 'investigator@ims.com' },
-    update: { password: hashedPassword },
-    create: { name: 'David Miller', email: 'investigator@ims.com', password: hashedPassword, role: 'investigator' }
+    where:  { email: 'investigator@hms.com' },
+    update: { password: pw },
+    create: { name: 'Dr. David Miller', email: 'investigator@hms.com', password: pw, role: 'investigator' }
   });
-  const analyst = await prisma.user.upsert({
-    where: { email: 'analyst@ims.com' },
-    update: { password: hashedPassword },
-    create: { name: 'Emily Davis', email: 'analyst@ims.com', password: hashedPassword, role: 'risk_analyst' }
+  const investigator2 = await prisma.user.upsert({
+    where:  { email: 'investigator2@hms.com' },
+    update: { password: pw },
+    create: { name: 'Dr. Priya Sharma', email: 'investigator2@hms.com', password: pw, role: 'investigator' }
   });
-
+  const actionOwner = await prisma.user.upsert({
+    where:  { email: 'action.owner@hms.com' },
+    update: { password: pw },
+    create: { name: 'Nurse Emily Davis', email: 'action.owner@hms.com', password: pw, role: 'action_owner' }
+  });
+  const actionOwner2 = await prisma.user.upsert({
+    where:  { email: 'action.owner2@hms.com' },
+    update: { password: pw },
+    create: { name: 'Pharmacist James Wilson', email: 'action.owner2@hms.com', password: pw, role: 'action_owner' }
+  });
+  const staff = await prisma.user.upsert({
+    where:  { email: 'staff@hms.com' },
+    update: { password: pw },
+    create: { name: 'Nurse John Perera', email: 'staff@hms.com', password: pw, role: 'staff' }
+  });
   console.log('✅ Users created');
 
-  // ── Real-world incidents ───────────────────────────────────────────────────
-  // Groups designed so AI can find genuine similarities:
-  //   Group A: Cyber / Security (5 incidents)
-  //   Group B: IT Infrastructure / Server (5 incidents)
-  //   Group C: Workplace Safety / Slip-Trip-Fall (5 incidents)
-  //   Group D: Data Breach / Privacy (4 incidents)
-  //   Group E: Environmental / Chemical Spill (4 incidents)
-  //   Group F: HR / Compliance (4 incidents)
-  //   Group G: Fire Safety (3 incidents)
-
-  const incidents = [
-    // ── GROUP A: Cyber / Security ──────────────────────────────────────────
+  // ── Incidents ──────────────────────────────────────────────────────────
+  const incidentData = [
+    // Medication Errors
     {
-      title: 'Ransomware Attack on Finance Department',
-      description: 'Ransomware malware encrypted 200+ files on the finance department shared drive. Attacker demanded 3 BTC ransom. Systems were isolated immediately. Backups were used to restore data within 6 hours. Initial infection vector was a phishing email with a malicious Excel macro.',
-      severity: 'CRITICAL', category: 'Cyber Security', department: 'Finance',
-      location: 'Head Office - Finance Floor', status: 'CLOSED', reportedBy: admin.id
+      title: 'Wrong Medication Dose — ICU Patient Received 10x Morphine',
+      description: 'A patient in ICU Bed 4 received 10mg of morphine instead of the prescribed 1mg due to a decimal point error in the medication order. Error caught 30 minutes after administration during routine vitals check. Patient showed respiratory depression, required naloxone. Recovered fully after 4 hours monitoring.',
+      severity: 'CRITICAL', category: 'Medication Error', department: 'ICU',
+      location: 'ICU Bay 4', status: 'CLOSED', reportedBy: staff.id
     },
     {
-      title: 'Phishing Email Campaign Targeting HR Staff',
-      description: 'Mass phishing campaign sent to 45 HR employees impersonating the CEO. 3 employees clicked the malicious link and entered credentials. Attackers gained access to payroll system briefly before detection. Multi-factor authentication was not enabled on affected accounts.',
-      severity: 'HIGH', category: 'Cyber Security', department: 'Human Resources',
-      location: 'HR Department', status: 'CLOSED', reportedBy: investigator.id
+      title: 'Penicillin Administered to Documented Allergy Patient',
+      description: 'Patient with documented penicillin allergy received amoxicillin 500mg orally. Allergy alert existed in paper records but not transferred to EMR at re-admission. Patient developed urticaria. Antihistamines administered immediately. Allergy documentation gap identified.',
+      severity: 'HIGH', category: 'Medication Error', department: 'General Ward',
+      location: 'Ward 3B, Bed 12', status: 'CLOSED', reportedBy: staff.id
     },
     {
-      title: 'Brute Force Attack on VPN Gateway',
-      description: 'Over 50,000 failed authentication attempts detected on the corporate VPN gateway over a 2-hour period from IP ranges in Eastern Europe. Intrusion detection system flagged the activity. VPN gateway temporarily blocked affected IP ranges. No successful breach confirmed.',
-      severity: 'HIGH', category: 'Cyber Security', department: 'IT',
-      location: 'Network Infrastructure', status: 'CLOSED', reportedBy: admin.id
+      title: 'IV Heparin Infusion Rate Error — 10x Overdose',
+      description: 'Patient on heparin received 2000 units/hour instead of 200 units/hour due to pump programming error. Identified during nurse handover. PTT critically elevated. Protamine sulfate administered. Patient had no major bleeding events.',
+      severity: 'CRITICAL', category: 'Medication Error', department: 'ICU',
+      location: 'ICU Bay 7', status: 'INVESTIGATING', reportedBy: staff.id
     },
     {
-      title: 'Malware Detected on Executive Laptop',
-      description: 'Endpoint detection and response tool flagged keylogger malware on CFO laptop. Malware had been active for approximately 72 hours before detection. Device quarantined immediately. Forensic analysis performed. Credentials for 4 business systems potentially compromised.',
-      severity: 'CRITICAL', category: 'Cyber Security', department: 'Executive',
-      location: 'C-Suite Floor', status: 'IN_PROGRESS', reportedBy: admin.id
+      title: 'Duplicate Antihypertensive Order — Patient Received Double Dose',
+      description: 'Patient admitted for chest pain prescribed amlodipine 10mg by both admitting physician and on-call cardiologist independently. Two doses given before pharmacy reconciliation identified the duplicate. Patient experienced symptomatic hypotension requiring IV fluid resuscitation.',
+      severity: 'HIGH', category: 'Medication Error', department: 'Emergency Department',
+      location: 'ED Bay 2', status: 'PENDING_ACTION', reportedBy: staff.id
     },
     {
-      title: 'Unauthorized USB Device Connected to Workstation',
-      description: 'DLP system detected an unauthorized USB storage device connected to an accounting workstation. 2.4GB of financial data was copied before the device was blocked. Employee claimed it was for legitimate work-from-home purposes but had not followed data handling procedures.',
-      severity: 'HIGH', category: 'Cyber Security', department: 'Accounting',
-      location: 'Accounting Department', status: 'UNDER_REVIEW', reportedBy: investigator.id
+      title: 'Oral Methotrexate Dispensed Daily Instead of Weekly',
+      description: 'Patient on weekly oral methotrexate for RA was dispensed medication with incorrect daily dosing instructions. Patient took daily doses for 5 days. Discovered at follow-up appointment. Patient presented with mucositis and elevated LFTs. Hospitalized for leucovorin rescue therapy.',
+      severity: 'HIGH', category: 'Medication Error', department: 'Outpatient Clinic',
+      location: 'Outpatient Pharmacy', status: 'UNDER_REVIEW', reportedBy: staff.id
     },
-
-    // ── GROUP B: IT Infrastructure / Server ───────────────────────────────
+    // Patient Falls
     {
-      title: 'Primary Database Server Crash - Production Outage',
-      description: 'Primary PostgreSQL database server experienced hardware failure due to RAID controller malfunction. All production services went offline for 3.5 hours. Failover to standby did not trigger automatically due to misconfigured health check timeout. Data restored from hourly snapshots with 47 minutes of data loss.',
-      severity: 'CRITICAL', category: 'Infrastructure', department: 'IT',
-      location: 'Data Center - Rack 14', status: 'CLOSED', reportedBy: admin.id
-    },
-    {
-      title: 'Web Server Memory Leak Causing Service Degradation',
-      description: 'Node.js application server experienced progressive memory leak due to unclosed database connections in background job processor. Server memory climbed from 40% to 98% over 6 hours causing severe slowdowns. Service response time increased from 200ms to 8 seconds before automatic restart triggered.',
-      severity: 'HIGH', category: 'Infrastructure', department: 'Engineering',
-      location: 'Cloud Infrastructure (AWS)', status: 'CLOSED', reportedBy: investigator.id
+      title: 'Elderly Patient Fall — Hip Fracture During Unassisted Bathroom Visit',
+      description: '82-year-old patient with high fall risk (Morse Scale 75) attempted unassisted bathroom visit at 02:30. Patient fell and sustained left hip fracture. Bed alarm had malfunctioned and was not alerting. Call bell was accessible but not used.',
+      severity: 'HIGH', category: 'Patient Fall', department: 'General Ward',
+      location: 'Ward 2A, Room 204 Bathroom', status: 'CLOSED', reportedBy: staff.id
     },
     {
-      title: 'Network Switch Failure Causing Partial Office Outage',
-      description: 'Core network switch in Building B failed due to overheating. 80 employees lost network connectivity including VoIP phones, printers, and internet access. Failure caused by blocked air vents and ambient temperature exceeding operating threshold. Temporary patch cable workaround deployed within 45 minutes.',
-      severity: 'HIGH', category: 'Infrastructure', department: 'IT',
-      location: 'Building B - Server Room', status: 'CLOSED', reportedBy: investigator.id
+      title: 'Post-Operative Patient Fell Climbing Over Bedrails — Head Injury',
+      description: 'Patient 6 hours post-appendectomy became confused due to opioid analgesia, climbed over raised bedrails and fell, striking head. CT showed no intracranial pathology. Nursing staff were responding to another emergency.',
+      severity: 'HIGH', category: 'Patient Fall', department: 'General Ward',
+      location: 'Surgical Ward 5, Bed 8', status: 'CLOSED', reportedBy: staff.id
     },
     {
-      title: 'SSL Certificate Expiry Causing E-commerce Downtime',
-      description: 'SSL/TLS certificate on the main e-commerce domain expired causing browsers to display security warnings. Automated renewal cron job had failed silently 30 days prior. Sales page was inaccessible for 4 hours resulting in estimated $85,000 revenue loss. Certificate renewed manually.',
-      severity: 'CRITICAL', category: 'Infrastructure', department: 'Engineering',
-      location: 'Production Environment', status: 'CLOSED', reportedBy: manager.id
+      title: 'Stroke Patient Fell During Wheelchair-to-Bed Transfer',
+      description: 'During afternoon transfer, wheelchair footrests were not folded away. Patient foot caught and they fell forward. One nurse was assisting — two-person protocol was required per care plan. Patient sustained bruising to left knee. No fractures on imaging.',
+      severity: 'MEDIUM', category: 'Patient Fall', department: 'General Ward',
+      location: 'Rehabilitation Ward 4, Room 407', status: 'INVESTIGATING', reportedBy: staff.id
     },
     {
-      title: 'Cloud Storage Bucket Misconfiguration - Public Access',
-      description: 'AWS S3 bucket containing customer invoice PDFs was accidentally set to public read access during a Terraform configuration update. Bucket was publicly accessible for 18 hours before discovery. Approximately 12,000 customer invoice files were potentially exposed. Audit log review ongoing.',
-      severity: 'CRITICAL', category: 'Infrastructure', department: 'Engineering',
-      location: 'AWS Cloud Environment', status: 'IN_PROGRESS', reportedBy: admin.id
-    },
-
-    // ── GROUP C: Workplace Safety / Slip-Trip-Fall ─────────────────────────
-    {
-      title: 'Employee Slip and Fall on Wet Lobby Floor',
-      description: 'Employee slipped on wet floor in the main lobby after a wet mop was left unattended without wet floor warning signs. Suffered minor contusion on right knee and wrist sprain. First aid administered on site. Employee was able to walk unaided. Incident occurred during lunch peak period.',
-      severity: 'MEDIUM', category: 'Health & Safety', department: 'Facilities',
-      location: 'Main Lobby - Ground Floor', status: 'CLOSED', reportedBy: investigator.id
+      title: 'ICU Patient Self-Extubated and Fell During Delirium Episode',
+      description: 'Delirious ICU patient removed endotracheal tube and IV lines, attempted to ambulate, fell at bedside. Emergency re-intubation required. Wrist restraints had been removed as patient appeared calm. Delirium screening score had increased in preceding 24 hours.',
+      severity: 'CRITICAL', category: 'Patient Fall', department: 'ICU',
+      location: 'ICU Bed 2', status: 'PENDING_ACTION', reportedBy: staff.id
     },
     {
-      title: 'Contractor Trip and Fall from Scaffolding',
-      description: 'External contractor performing ceiling maintenance tripped over an unsecured power cable on scaffolding and fell approximately 1.5 meters. Sustained fractured wrist and bruised ribs. Hard hat worn as per protocol prevented head injury. Ambulance called. RIDDOR reportable incident.',
-      severity: 'HIGH', category: 'Health & Safety', department: 'Facilities',
-      location: 'Building C - 3rd Floor Atrium', status: 'CLOSED', reportedBy: manager.id
+      title: 'Outpatient Slipped on Wet Floor — Wrist Fracture',
+      description: 'Outpatient attending morning clinic slipped on wet floor near radiology department. Wet floor sign was present at one end but not visible from patient approach direction. Patient sustained Colles fracture of right wrist. Cleaning staff placed signs at only one end of spill.',
+      severity: 'MEDIUM', category: 'Patient Fall', department: 'Outpatient Clinic',
+      location: 'Main Corridor, Level 2 near Radiology', status: 'OPEN', reportedBy: staff.id
+    },
+    // Surgical Complications
+    {
+      title: 'Retained Surgical Swab Discovered Post-Operatively',
+      description: 'Patient who underwent emergency laparotomy presented 4 days later with fever and abdominal pain. CT revealed retained swab in right lower quadrant. Patient returned to theatre for removal. Pre/post-operative swab counts had matched — count was not independently verified by two nurses.',
+      severity: 'CRITICAL', category: 'Surgical Complication', department: 'Operating Theatre',
+      location: 'OT Suite 3', status: 'CLOSED', reportedBy: staff.id
     },
     {
-      title: 'Warehouse Worker Slip on Spilled Hydraulic Oil',
-      description: 'Warehouse operative slipped on hydraulic oil leak from a forklift truck. Worker fell backwards striking lower back on concrete floor. Significant lumbar pain reported. Taken to hospital via ambulance. Hydraulic system fault on forklift had been reported 3 days prior but not yet repaired.',
-      severity: 'HIGH', category: 'Health & Safety', department: 'Operations',
-      location: 'Warehouse - Bay 7', status: 'UNDER_REVIEW', reportedBy: investigator.id
+      title: 'Wrong-Site Surgery — Left Knee Operated Instead of Right',
+      description: 'Patient scheduled for right knee arthroscopy had left knee prepped. Error discovered when surgeon noticed absence of correct site marking. Surgery halted immediately. No significant injury beyond initial incision. WHO Safe Surgery Checklist not completed.',
+      severity: 'CRITICAL', category: 'Surgical Complication', department: 'Operating Theatre',
+      location: 'OT Suite 1', status: 'CLOSED', reportedBy: admin.id
     },
     {
-      title: 'Office Worker Tripped Over Trailing Phone Cable',
-      description: 'Office employee tripped over a telephone cable routed across a walkway between desks. Fell forward hitting face on desk corner. Required 3 stitches to forehead laceration. Cable had been a known hazard and reported to facilities team 2 weeks earlier without action taken.',
-      severity: 'MEDIUM', category: 'Health & Safety', department: 'Sales',
-      location: 'Open Plan Office - Sales Floor', status: 'CLOSED', reportedBy: investigator.id
+      title: 'Intraoperative Anaphylaxis to Latex — Undisclosed Sensitivity',
+      description: 'Patient with undisclosed latex sensitivity developed anaphylactic shock during elective cholecystectomy. Latex allergy not documented in pre-operative assessment and not communicated to intraoperative team. Responded to epinephrine and steroids. Recovered fully in ICU.',
+      severity: 'HIGH', category: 'Surgical Complication', department: 'Operating Theatre',
+      location: 'OT Suite 2', status: 'UNDER_REVIEW', reportedBy: staff.id
     },
     {
-      title: 'Visitor Fall on Icy Car Park Surface',
-      description: 'External visitor slipped on black ice in the main car park and fell, fracturing their wrist. Gritting of car park had not been completed despite forecasted sub-zero temperatures overnight. Visitor is considering legal action. CCTV footage preserved.',
-      severity: 'HIGH', category: 'Health & Safety', department: 'Facilities',
-      location: 'Main Car Park - Visitor Bays', status: 'IN_PROGRESS', reportedBy: admin.id
+      title: 'Post-Op MRSA Wound Infection After Hip Replacement',
+      description: 'Patient developed deep wound infection 10 days post total hip replacement. MRSA isolated from wound cultures. Required surgical debridement and prolonged IV vancomycin. Environmental OT swabs showed MRSA contamination. Enhanced cleaning protocols implemented.',
+      severity: 'HIGH', category: 'Surgical Complication', department: 'Operating Theatre',
+      location: 'OT Suite 4', status: 'INVESTIGATING', reportedBy: staff.id
     },
-
-    // ── GROUP D: Data Breach / Privacy ────────────────────────────────────
+    // Infection Control
     {
-      title: 'Customer Personal Data Emailed to Wrong Recipient',
-      description: 'Customer service agent sent a spreadsheet containing 340 customers personal data including names, addresses, and partial payment details to the wrong email address. Recipient was an external party unrelated to the company. Data subject notification required under GDPR Article 33.',
-      severity: 'HIGH', category: 'Data Privacy', department: 'Customer Service',
-      location: 'Customer Service Centre', status: 'CLOSED', reportedBy: manager.id
-    },
-    {
-      title: 'HR Database Exposed via Insecure API Endpoint',
-      description: 'Security researcher reported that an unauthenticated REST API endpoint was returning employee salary and personal data. Endpoint had been deployed without authentication as part of a hotfix 6 weeks prior. Affected records included 890 current and former employees. ICO notification submitted.',
-      severity: 'CRITICAL', category: 'Data Privacy', department: 'HR',
-      location: 'Internal HR System', status: 'CLOSED', reportedBy: admin.id
+      title: 'Norovirus Outbreak — 8 Patients Affected in Geriatric Ward',
+      description: 'Eight geriatric ward patients developed acute gastroenteritis over 48 hours. Norovirus confirmed in 6 cases. Shared commode not adequately decontaminated between patients. Ward cohorting implemented and closed to new admissions for 72 hours.',
+      severity: 'HIGH', category: 'Infection Control', department: 'General Ward',
+      location: 'Ward 6 — Geriatric Unit', status: 'CLOSED', reportedBy: staff.id
     },
     {
-      title: 'Paper Documents with Patient Data Found in Public Bin',
-      description: 'Members of the public found printed documents containing patient consultation notes and personal details in a street-side recycling bin. Documents traced back to a locum GP who had printed patient notes and failed to shred them before disposal. Regulatory breach under UK GDPR.',
-      severity: 'HIGH', category: 'Data Privacy', department: 'Medical',
-      location: 'External - Public Area', status: 'UNDER_REVIEW', reportedBy: investigator.id
+      title: 'CLABSI — Central Line Day 12 ICU Patient',
+      description: 'ICU patient developed fever, rigors. Blood cultures positive for Staphylococcus epidermidis. CLABSI confirmed. Central line removed, IV antibiotics for 14 days. Bundle compliance checklist not completed at time of line insertion.',
+      severity: 'HIGH', category: 'Infection Control', department: 'ICU',
+      location: 'ICU Bed 9', status: 'CLOSED', reportedBy: staff.id
     },
     {
-      title: 'Laptop Stolen Containing Unencrypted Customer Data',
-      description: 'Company laptop stolen from an employees car contained an unencrypted local database backup with approximately 4,500 customer records. Laptop was password protected but hard drive encryption was not enabled contrary to company policy. Police report filed. ICO breach notification submitted within 72 hours.',
-      severity: 'CRITICAL', category: 'Data Privacy', department: 'Sales',
-      location: 'External - Employee Vehicle', status: 'CLOSED', reportedBy: admin.id
-    },
-
-    // ── GROUP E: Environmental / Chemical Spill ────────────────────────────
-    {
-      title: 'Chemical Solvent Spill in Manufacturing Area',
-      description: 'A 25-litre drum of industrial solvent (isopropyl alcohol) tipped over during forklift loading operation. Liquid spread across approximately 15 square metres of factory floor. Area evacuated. Emergency spill kit deployed. Local fire brigade notified as per chemical spill protocol. No injuries.',
-      severity: 'HIGH', category: 'Environmental', department: 'Manufacturing',
-      location: 'Factory Floor - Chemical Storage Zone', status: 'CLOSED', reportedBy: investigator.id
+      title: 'PPE Protocol Breach in TB Isolation Room',
+      description: 'Staff nurse observed healthcare assistant entering airborne isolation room (suspected TB) wearing only surgical mask, not N95 respirator. HCA confirmed had run out of N95 masks and did not report this. N95 supply in anteroom depleted.',
+      severity: 'HIGH', category: 'Infection Control', department: 'General Ward',
+      location: 'Isolation Room 101, Ward 3', status: 'ACCEPTED', reportedBy: staff.id
     },
     {
-      title: 'Refrigerant Gas Leak in Server Room HVAC Unit',
-      description: 'Refrigerant leak detected from aging HVAC cooling unit in the main server room. R410A gas detected at elevated concentration by environmental sensors. Server room evacuated as precaution. HVAC contractor called for emergency repair. Servers maintained temperature within safe limits using portable cooling units.',
-      severity: 'MEDIUM', category: 'Environmental', department: 'IT',
-      location: 'Data Center - Server Room A', status: 'CLOSED', reportedBy: manager.id
+      title: 'Needlestick Injury — Uncapped Needle in Waste Bin',
+      description: 'Domestic services worker sustained needlestick injury removing waste bag from clinical bin in ED. Uncapped needle placed in general clinical waste instead of sharps container. Worker started needlestick protocol. Source patient HIV negative.',
+      severity: 'HIGH', category: 'Infection Control', department: 'Emergency Department',
+      location: 'ED Treatment Bay 5', status: 'OPEN', reportedBy: staff.id
+    },
+    // Equipment Failures
+    {
+      title: 'Ventilator Alarm Failure During Night Shift',
+      description: 'ICU ventilator high-pressure alarm failed during patient coughing and partial circuit disconnection. Manual backup alarm also did not trigger. Bedside nurse noted desaturation on central monitor within 90 seconds. Ventilator removed from service for biomedical review. No patient harm.',
+      severity: 'HIGH', category: 'Equipment Failure', department: 'ICU',
+      location: 'ICU Bay 11', status: 'CLOSED', reportedBy: staff.id
     },
     {
-      title: 'Oil Spill from Delivery Vehicle in Loading Bay',
-      description: 'Delivery truck experienced catastrophic engine oil failure in the loading bay resulting in approximately 40 litres of engine oil spillage. Oil spread towards a nearby storm drain. Drain blocked with absorbent socks before contamination reached water course. Environmental agency notified.',
-      severity: 'HIGH', category: 'Environmental', department: 'Logistics',
-      location: 'Loading Bay 3', status: 'CLOSED', reportedBy: investigator.id
+      title: 'Infusion Pump Malfunction — Noradrenaline Delivered at 4x Rate',
+      description: 'Infusion pump delivering noradrenaline began running at ~4x set rate. Nurse noticed sharp BP rise on monitor. Pump stopped and replaced immediately. Biomedical review found faulty motor control board. Patient experienced temporary severe hypertension but recovered.',
+      severity: 'CRITICAL', category: 'Equipment Failure', department: 'ICU',
+      location: 'ICU Bay 3', status: 'CLOSED', reportedBy: staff.id
     },
     {
-      title: 'Battery Acid Leak from UPS Systems',
-      description: 'Multiple UPS battery units in the telecoms room experienced swelling and acid leakage due to overcharging caused by faulty charge controller. Corrosive acid contaminated floor and damaged adjacent equipment. Specialist hazmat clean-up required. Telecoms services disrupted for 8 hours.',
-      severity: 'HIGH', category: 'Environmental', department: 'IT',
-      location: 'Telecoms Room - Building A', status: 'UNDER_REVIEW', reportedBy: admin.id
+      title: 'Defibrillator Battery Failure During Cardiac Arrest',
+      description: 'During cardiac arrest on general ward, crash cart defibrillator failed to power on due to depleted battery. Second defibrillator retrieved, adding ~90 second delay to first shock. ROSC achieved but patient suffered hypoxic brain injury. Battery not checked during three preceding daily equipment checks.',
+      severity: 'CRITICAL', category: 'Equipment Failure', department: 'General Ward',
+      location: 'Ward 2B, Room 208', status: 'UNDER_REVIEW', reportedBy: staff.id
     },
-
-    // ── GROUP F: HR / Compliance ──────────────────────────────────────────
+    // Diagnostic Errors
     {
-      title: 'Employee Workplace Harassment Complaint',
-      description: 'Formal complaint received from a junior team member alleging repeated verbal harassment by a line manager over a 3-month period. Complainant alleges comments about gender and personal appearance. HR investigation initiated. Both parties interviewed. Manager suspended pending investigation outcome.',
-      severity: 'HIGH', category: 'HR & Compliance', department: 'Human Resources',
-      location: 'Marketing Department', status: 'IN_PROGRESS', reportedBy: manager.id
-    },
-    {
-      title: 'Timesheet Fraud Discovered During Audit',
-      description: 'Internal audit identified a pattern of inflated overtime claims by a team of 4 contractors over a 6-month period. Estimated overpayment of $34,000. Discrepancy discovered by cross-referencing access control logs with timesheet submissions. Contractors terminated. Police referral under consideration.',
-      severity: 'HIGH', category: 'HR & Compliance', department: 'Finance',
-      location: 'Finance Operations Centre', status: 'UNDER_REVIEW', reportedBy: admin.id
+      title: 'Delayed Pulmonary Embolism Diagnosis — Chest X-Ray Misread',
+      description: 'Patient with dyspnoea had chest X-ray reported as normal by ED registrar. Discharged with musculoskeletal pain diagnosis. Re-presented 18 hours later in haemodynamic compromise. CT confirmed massive bilateral PE. Required ICU admission and thrombolysis.',
+      severity: 'CRITICAL', category: 'Diagnostic Error', department: 'Emergency Department',
+      location: 'ED Assessment Bay', status: 'CLOSED', reportedBy: admin.id
     },
     {
-      title: 'Health & Safety Training Records Non-Compliant',
-      description: 'Regulatory audit found that 68 employees in the manufacturing division had not completed mandatory annual health and safety refresher training within required timeframes. Records had not been updated in the LMS following a system migration. Regulatory improvement notice issued. 30-day remediation deadline given.',
-      severity: 'MEDIUM', category: 'HR & Compliance', department: 'Human Resources',
-      location: 'Manufacturing Division', status: 'CLOSED', reportedBy: investigator.id
+      title: 'Blood Sample Mislabelling — Wrong Cross-Match Results',
+      description: 'Blood sample for pre-operative cross-match collected from Patient A but labelled with Patient B details. Error caught at blood bank second-sample protocol. Neither patient received incompatible blood. Labelling error occurred at bedside collection.',
+      severity: 'HIGH', category: 'Patient Identification', department: 'Laboratory',
+      location: 'Surgical Pre-Op Ward and Haematology Lab', status: 'CLOSED', reportedBy: staff.id
     },
     {
-      title: 'GDPR Subject Access Request Response Deadline Missed',
-      description: 'A subject access request submitted by a former employee was not identified in the customer service ticket queue due to incorrect categorisation. The mandatory 30-day response deadline was missed by 12 days. ICO complaint subsequently filed by the data subject. DPO notified. Formal response issued.',
-      severity: 'MEDIUM', category: 'HR & Compliance', department: 'Legal',
-      location: 'Legal & Compliance Team', status: 'CLOSED', reportedBy: investigator.id
-    },
-
-    // ── GROUP G: Fire Safety ──────────────────────────────────────────────
-    {
-      title: 'Kitchen Fire Suppression System Accidental Activation',
-      description: 'CO2 fire suppression system in the server room cafe kitchen was accidentally triggered by steam from a commercial dishwasher. System discharged causing brief hypoxic conditions. 3 kitchen staff evacuated safely. False activation set off building-wide fire alarm. Fire brigade attended. Kitchen closed for 4 hours for ventilation.',
-      severity: 'HIGH', category: 'Fire Safety', department: 'Facilities',
-      location: 'Staff Canteen Kitchen', status: 'CLOSED', reportedBy: manager.id
+      title: 'Critical Lab Value Not Communicated — Hyperkalaemia 6.8',
+      description: 'Critically elevated serum potassium (6.8 mmol/L) reported at 03:15. Lab called ward number on file but ward had relocated. Result uncollected for 3.5 hours until day team reviewed at 06:45. Patient on ECG monitoring throughout, no dysrhythmia.',
+      severity: 'HIGH', category: 'Documentation Error', department: 'Laboratory',
+      location: 'Pathology Lab and Ward 4A', status: 'INVESTIGATING', reportedBy: staff.id
     },
     {
-      title: 'Electrical Fire in Office Server Cupboard',
-      description: 'Small electrical fire started in an office server cupboard due to overloaded power strip running several unmanaged switches and a printer. Smoke detected by building alarm. Staff evacuated. Fire extinguished by facilities manager using CO2 extinguisher before fire brigade arrival. Minor smoke damage to equipment.',
-      severity: 'HIGH', category: 'Fire Safety', department: 'IT',
-      location: 'Office Block - 2nd Floor Server Cupboard', status: 'CLOSED', reportedBy: investigator.id
+      title: 'Radiology Report Filed Under Wrong Patient — Appendicitis Delayed',
+      description: 'CT abdomen confirming acute appendicitis filed under wrong patient MRN due to data entry error. Treating team did not receive report for 6 hours. Patient underwent emergency appendectomy but presented with perforated appendix due to delay.',
+      severity: 'HIGH', category: 'Documentation Error', department: 'Radiology',
+      location: 'Radiology Department and ED', status: 'ACCEPTED', reportedBy: staff.id
+    },
+    // Blood/Transfusion
+    {
+      title: 'Near-Miss ABO Incompatible Transfusion — WBIT Event',
+      description: 'Blood sample collected in tube labelled with wrong patient details (Wrong Blood in Tube). Error identified at bedside pre-transfusion verification by second nurse. Transfusion not commenced. Both patients re-sampled and correct cross-match units prepared.',
+      severity: 'CRITICAL', category: 'Blood/Transfusion', department: 'Operating Theatre',
+      location: 'Pre-Op Assessment Area', status: 'CLOSED', reportedBy: staff.id
     },
     {
-      title: 'Fire Exit Blocked by Delivery Pallets',
-      description: 'During a routine fire safety inspection it was found that 3 emergency fire exits in the warehouse were blocked by delivery pallets. Pallets had been stacked against exits by an agency worker unaware of fire safety regulations. Exits cleared immediately. Agency worker given formal warning. Refresher training arranged.',
-      severity: 'MEDIUM', category: 'Fire Safety', department: 'Operations',
-      location: 'Warehouse - South Wing', status: 'CLOSED', reportedBy: investigator.id
+      title: 'Febrile Non-Haemolytic Transfusion Reaction',
+      description: 'Patient with chronic anaemia developed FNHTR ~45 minutes into second unit of packed RBCs. Temperature rose to 38.9°C. Transfusion stopped, paracetamol given. Patient recovered within 2 hours. Haemovigilance report filed.',
+      severity: 'MEDIUM', category: 'Blood/Transfusion', department: 'General Ward',
+      location: 'Day Chemotherapy Unit', status: 'CLOSED', reportedBy: staff.id
     },
+    {
+      title: 'Transfusion Started Without Written Consent — Post-Partum Haemorrhage',
+      description: 'Patient required urgent blood transfusion for PPH. In emergency, transfusion commenced before consent form signed. Patient was conscious and verbally consented. Written consent obtained 20 minutes later. Incident self-reported by midwife. Patient outcome excellent.',
+      severity: 'LOW', category: 'Blood/Transfusion', department: 'Maternity',
+      location: 'Delivery Suite 3', status: 'OPEN', reportedBy: staff.id
+    }
   ];
 
-  let created = 0;
-  for (const inc of incidents) {
-    await prisma.incident.create({ data: inc });
-    created++;
+  console.log(`🏥 Creating ${incidentData.length} hospital incidents...`);
+  const created = [];
+  for (const d of incidentData) {
+    const inc = await prisma.incident.create({ data: d });
+    created.push(inc);
   }
 
-  console.log(`✅ Created ${created} incidents`);
-
-  // ── Add root causes + closures to CLOSED incidents ─────────────────────
-  // This gives the AI richer text to embed and find better similarity matches
-  const closedIncidents = await prisma.incident.findMany({
-    where: { status: 'CLOSED' },
-    orderBy: { createdAt: 'asc' }
-  });
-
-  const rootCauseTemplates = [
-    { cat: 'Human Error',       desc: 'Insufficient staff training and failure to follow established procedures contributed to this incident.' },
-    { cat: 'System Failure',    desc: 'Underlying technical system failure combined with inadequate monitoring and alerting mechanisms.' },
-    { cat: 'Process Gap',       desc: 'Absence of a formal documented process or checklist resulted in critical steps being missed.' },
-    { cat: 'Equipment Failure', desc: 'Equipment reached end of operational life and preventive maintenance schedule was not adhered to.' },
-    { cat: 'Human Error',       desc: 'Miscommunication between teams led to incorrect assumptions about responsibilities and ownership.' },
-    { cat: 'External Factor',   desc: 'Third-party vendor action or environmental condition outside of organisational control.' },
-    { cat: 'Process Gap',       desc: 'Change management process was bypassed leading to unreviewed configuration being deployed to production.' },
-    { cat: 'System Failure',    desc: 'Automated failover mechanism failed to trigger due to misconfigured health check thresholds.' },
-    { cat: 'Human Error',       desc: 'Employee lacked awareness of the security implications of their actions and had not received recent training.' },
-    { cat: 'Process Gap',       desc: 'Regular inspection and audit programme did not cover this area resulting in the hazard going undetected.' },
-  ];
-
-  const lessonTemplates = [
-    'Implement mandatory refresher training for all staff annually. Introduce automated compliance tracking.',
-    'Deploy comprehensive monitoring and alerting. Conduct regular failover testing to validate recovery procedures.',
-    'Document and communicate all processes. Introduce pre-task briefings and checklists for high-risk activities.',
-    'Establish preventive maintenance schedule. Implement asset lifecycle management programme.',
-    'Improve cross-team communication protocols. Introduce formal handover documentation.',
-    'Diversify supplier base and implement contingency planning for third-party dependencies.',
-    'Enforce change management process. No changes to production without peer review and approval.',
-    'Review and test all automated failover configurations quarterly. Simulate disaster recovery scenarios.',
-    'Increase security awareness training frequency. Implement phishing simulation exercises.',
-    'Expand inspection programme coverage. Include all areas in monthly safety walk-around programme.',
-  ];
-
-  let rcCount = 0;
-  for (let i = 0; i < closedIncidents.length; i++) {
-    const inc = closedIncidents[i];
-    const template = rootCauseTemplates[i % rootCauseTemplates.length];
-    const lesson   = lessonTemplates[i % lessonTemplates.length];
-
-    // Root cause
+  // ── Full lifecycle for CLOSED incidents ───────────────────────────────
+  const closedIncs = created.filter(i => i.status === 'CLOSED');
+  for (const inc of closedIncs) {
+    await prisma.incidentInvestigation.upsert({
+      where:  { incidentId: inc.id },
+      update: {},
+      create: {
+        incidentId: inc.id,
+        findings:   'Investigation completed. Root cause identified through staff interviews, documentation review, and direct observation of the incident circumstances.',
+        evidence:   'Patient records, medication administration records, staff statements, equipment logs reviewed.',
+        investigatedBy:    investigator.id,
+        investigationDate: new Date()
+      }
+    });
     await prisma.incidentRootCause.upsert({
-      where: { incidentId: inc.id },
+      where:  { incidentId: inc.id },
       update: {},
       create: {
-        incidentId: inc.id,
-        rootCauseCategory: template.cat,
-        description: template.desc,
-        contributingFactors: 'Lack of oversight, inadequate controls, and time pressure were all contributing factors.',
+        incidentId:          inc.id,
+        rootCauseCategory:   'Process/Protocol Gap',
+        description:         'Investigation identified failure in adherence to existing protocols and inadequate verification steps at critical decision points.',
+        contributingFactors: 'High workload, inadequate handover, system alert fatigue, and insufficient double-check procedures contributed to this incident.',
+        causalChain:         'Staff workload → missed verification → protocol deviation → adverse event'
       }
     });
-
-    // Review
+    await prisma.incidentAction.create({
+      data: {
+        incidentId:  inc.id,
+        actionTaken: 'Implement mandatory double-check procedure and update staff training protocols.',
+        assignedTo:  actionOwner.id,
+        priority:    'HIGH',
+        status:      'COMPLETED'
+      }
+    });
+    await prisma.incidentControl.create({
+      data: {
+        incidentId:  inc.id,
+        controlType: 'Preventive',
+        description: 'Updated clinical protocol and mandatory staff competency assessment implemented.',
+        owner:       actionOwner.id,
+        status:      'IMPLEMENTED'
+      }
+    });
     await prisma.incidentReview.upsert({
-      where: { incidentId: inc.id },
+      where:  { incidentId: inc.id },
       update: {},
       create: {
-        incidentId: inc.id,
-        reviewNotes: 'Incident reviewed by management. All corrective actions verified as completed. Process improvements implemented.',
-        effectivenessRating: 3 + (i % 3),
-        reviewerId: manager.id,
+        incidentId:          inc.id,
+        reviewerId:          managerICU.id,
+        reviewNotes:         'All corrective actions implemented and verified. Staff completed updated training. Risk of recurrence significantly reduced.',
+        effectivenessRating: 4,
+        reviewDate:          new Date()
       }
     });
-
-    // Closure
     await prisma.incidentClosure.upsert({
-      where: { incidentId: inc.id },
+      where:  { incidentId: inc.id },
       update: {},
       create: {
-        incidentId: inc.id,
-        closureSummary: 'Incident fully investigated, root cause identified, and corrective actions implemented. All affected parties notified.',
-        lessonsLearned: lesson,
-        closedBy: admin.id,
-        closureDate: new Date(),
+        incidentId:      inc.id,
+        closureSummary:  'Incident fully investigated, root cause identified, corrective actions implemented and verified. Lessons learned documented and shared with clinical team.',
+        lessonsLearned:  'Enhanced verification protocols and checklists are essential safety barriers. Staff must feel empowered to pause and verify before proceeding with any high-risk clinical intervention.',
+        closedBy:        managerICU.id,
+        closureDate:     new Date()
       }
     });
-
-    rcCount++;
   }
 
-  console.log(`✅ Added root causes, reviews & closures to ${rcCount} closed incidents`);
-  console.log('');
-  console.log('🎉 Seed complete! Login credentials:');
-  console.log('   admin@ims.com        / Admin@123  (Admin)');
-  console.log('   manager@ims.com      / Admin@123  (Manager)');
-  console.log('   investigator@ims.com  / Admin@123  (Investigator)');
-  console.log('   analyst@ims.com       / Admin@123  (Risk Analyst)');
-  console.log('');
-  console.log('📊 Data seeded:');
-  console.log(`   ${created} incidents (Cyber Security, IT Infrastructure, H&S, Data Privacy, Environmental, HR, Fire Safety)`);
-  console.log('   AI embedding will auto-process in ~30 seconds after backend starts');
+  // INVESTIGATING incidents — assign investigator
+  const investigatingIncs = created.filter(i => i.status === 'INVESTIGATING');
+  for (const inc of investigatingIncs) {
+    await prisma.incidentInvestigation.upsert({
+      where:  { incidentId: inc.id },
+      update: {},
+      create: {
+        incidentId:        inc.id,
+        findings:          'Investigation in progress. Initial findings documented. Continuing to gather evidence.',
+        investigatedBy:    investigator.id,
+        investigationDate: new Date()
+      }
+    });
+  }
+
+  // PENDING_ACTION incidents — full investigation + assigned action owner
+  const pendingIncs = created.filter(i => i.status === 'PENDING_ACTION');
+  for (const inc of pendingIncs) {
+    await prisma.incidentInvestigation.upsert({
+      where:  { incidentId: inc.id },
+      update: {},
+      create: {
+        incidentId:        inc.id,
+        findings:          'Investigation complete. Corrective actions assigned to action owner for implementation.',
+        investigatedBy:    investigator.id,
+        investigationDate: new Date()
+      }
+    });
+    await prisma.incidentAction.create({
+      data: {
+        incidentId:  inc.id,
+        actionTaken: 'Implement corrective actions as per investigation findings and departmental protocol review.',
+        assignedTo:  actionOwner.id,
+        priority:    'HIGH',
+        status:      'IN_PROGRESS'
+      }
+    });
+  }
+
+  // UNDER_REVIEW — add investigation and review
+  const reviewIncs = created.filter(i => i.status === 'UNDER_REVIEW');
+  for (const inc of reviewIncs) {
+    await prisma.incidentInvestigation.upsert({
+      where:  { incidentId: inc.id },
+      update: {},
+      create: {
+        incidentId:     inc.id,
+        findings:       'Investigation complete. All corrective actions implemented. Awaiting management review and formal closure.',
+        investigatedBy: investigator.id
+      }
+    });
+    await prisma.incidentReview.upsert({
+      where:  { incidentId: inc.id },
+      update: {},
+      create: {
+        incidentId:          inc.id,
+        reviewerId:          managerICU.id,
+        reviewNotes:         'Under review — verifying corrective action effectiveness before closure.',
+        effectivenessRating: 3
+      }
+    });
+  }
+
+  console.log('✅ Hospital incidents created with full lifecycle data');
+  console.log('\n🏥 Demo Credentials (all passwords: Admin@123):');
+  console.log('  Admin:          admin@hms.com');
+  console.log('  ICU Manager:    manager.icu@hms.com');
+  console.log('  ED Manager:     manager.ed@hms.com');
+  console.log('  Investigator:   investigator@hms.com');
+  console.log('  Investigator 2: investigator2@hms.com');
+  console.log('  Action Owner:   action.owner@hms.com');
+  console.log('  Action Owner 2: action.owner2@hms.com');
+  console.log('  Staff:          staff@hms.com');
 }
 
-main().catch(console.error).finally(() => prisma.$disconnect());
+main()
+  .catch(e => { console.error(e); process.exit(1); })
+  .finally(() => prisma.$disconnect());

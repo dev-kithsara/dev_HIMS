@@ -13,7 +13,7 @@ export default function LoginPage() {
   const navigate  = useNavigate()
   const setAuth   = useAuthStore(s => s.setAuth)
 
-  const [email,    setEmail]    = useState('admin@ims.com')
+  const [email,    setEmail]    = useState('admin@hms.com')
   const [password, setPassword] = useState('Admin@123')
   const [showPw,   setShowPw]   = useState(false)
   const [loading,  setLoading]  = useState(false)
@@ -50,14 +50,14 @@ export default function LoginPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/20 border border-primary/30 mb-4 animate-pulse-glow">
               <ShieldAlert className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold gradient-text">AI Incident Dashboard</h1>
+            <h1 className="text-2xl font-bold gradient-text">Hospital Safety IMS</h1>
             <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
           </div>
 
           {/* Demo credentials hint */}
           <div className="mb-6 rounded-lg bg-primary/10 border border-primary/20 p-3 text-xs text-muted-foreground">
             <span className="font-medium text-primary">Demo:</span>{' '}
-            admin@ims.com / Admin@123
+            admin@hms.com / Admin@123
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -103,7 +103,7 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            AI-Powered Incident Management System • University Project
+            Hospital Incident Management System • AI-Powered Safety Platform
           </p>
         </div>
       </div>

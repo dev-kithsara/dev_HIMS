@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Shield, Loader2, UserCheck, UserX,
-  ShieldCheck, Search, Microscope, BarChart2, HardHat,
+  ShieldCheck, Search, Microscope, Activity, User2,
 } from 'lucide-react'
 import { usersApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -16,11 +16,11 @@ import type { User, UserRole } from '@/types'
 
 // ── Role catalogue ─────────────────────────────────────────────────────────
 export const ROLES: { value: UserRole; label: string }[] = [
-  { value: 'admin',            label: 'Admin'            },
-  { value: 'incident_manager', label: 'Incident Manager' },
-  { value: 'investigator',     label: 'Investigator'     },
-  { value: 'risk_analyst',     label: 'Risk Analyst'     },
-  { value: 'reporter',         label: 'Reporter'         },
+  { value: 'admin',              label: 'Admin'              },
+  { value: 'department_manager', label: 'Dept. Manager'      },
+  { value: 'investigator',       label: 'Investigator'       },
+  { value: 'action_owner',       label: 'Action Owner'       },
+  { value: 'staff',              label: 'Staff'              },
 ]
 
 // ── Role appearance map ─────────────────────────────────────────────────────
@@ -28,11 +28,11 @@ const ROLE_META: Record<
   UserRole,
   { label: string; color: string; Icon: React.ElementType }
 > = {
-  admin:            { label: 'Admin',            color: 'text-red-400    bg-red-500/10    border-red-500/30',    Icon: ShieldCheck   },
-  incident_manager: { label: 'Incident Manager', color: 'text-orange-400 bg-orange-500/10 border-orange-500/30', Icon: Shield        },
-  investigator:     { label: 'Investigator',     color: 'text-violet-400 bg-violet-500/10 border-violet-500/30', Icon: Microscope    },
-  risk_analyst:     { label: 'Risk Analyst',     color: 'text-cyan-400   bg-cyan-500/10   border-cyan-500/30',   Icon: BarChart2     },
-  reporter:         { label: 'Reporter',         color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', Icon: HardHat    },
+  admin:              { label: 'Admin',         color: 'text-red-400     bg-red-500/10     border-red-500/30',     Icon: ShieldCheck },
+  department_manager: { label: 'Dept. Manager', color: 'text-orange-400  bg-orange-500/10  border-orange-500/30',  Icon: Shield      },
+  investigator:       { label: 'Investigator',  color: 'text-violet-400  bg-violet-500/10  border-violet-500/30',  Icon: Microscope  },
+  action_owner:       { label: 'Action Owner',  color: 'text-cyan-400    bg-cyan-500/10    border-cyan-500/30',    Icon: Activity    },
+  staff:              { label: 'Staff',         color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', Icon: User2       },
 }
 
 /** Compact role badge displayed in the table trigger */
@@ -53,8 +53,9 @@ export default function UsersPage() {
   const [name,     setName]     = useState('')
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
-  const [role,     setRole]     = useState<UserRole>('investigator')
-  const [search,   setSearch]   = useState('')
+  const [role,       setRole]       = useState<UserRole>('staff')
+  const [department, setDepartment] = useState('')
+  const [search,     setSearch]     = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['users'],
@@ -69,17 +70,18 @@ export default function UsersPage() {
   )
 
   const createMut = useMutation({
-    mutationFn: () => usersApi.create({ name, email, password, role: role as any }),
+    mutationFn: () => usersApi.create({ name, email, password, role: role as any, department: department || undefined }),
     onSuccess:  () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast({ title: 'User created', variant: 'success' })
-      setShowForm(false); setName(''); setEmail(''); setPassword(''); setRole('investigator')
+      setShowForm(false); setName(''); setEmail(''); setPassword(''); setRole('staff'); setDepartment('')
     },
     onError: (e: any) => toast({ title: e.response?.data?.error ?? 'Failed', variant: 'destructive' }),
   })
 
   const roleMut = useMutation({
-    mutationFn: ({ id, role }: { id: number; role: string }) => usersApi.updateRole(id, role),
+    mutationFn: ({ id, role, dept }: { id: number; role: string; dept?: string }) =>
+      usersApi.updateRole(id, role, dept),
     onSuccess:  () => { queryClient.invalidateQueries({ queryKey: ['users'] }); toast({ title: 'Role updated', variant: 'success' }) },
     onError:    () => toast({ title: 'Failed to update role', variant: 'destructive' }),
   })
@@ -131,6 +133,19 @@ export default function UsersPage() {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Min. 6 characters"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Department <span className="text-xs text-muted-foreground">(for Dept. Manager)</span></Label>
+                <select
+                  value={department}
+                  onChange={e => setDepartment(e.target.value)}
+                  className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm"
+                >
+                  <option value="">No Department</option>
+                  {['Emergency Department','ICU','General Ward','Operating Theatre','Pharmacy','Radiology','Laboratory','Maternity','Outpatient Clinic','Administration','Facilities & Maintenance','Nursing'].map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label>Role</Label>

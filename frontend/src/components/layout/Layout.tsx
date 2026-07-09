@@ -10,17 +10,17 @@ import { Toaster } from '@/components/ui/toaster'
 import NotificationBar from '@/components/layout/NotificationBar'
 import ChatWidget from '@/components/chat/ChatWidget'
 
-interface NavItem { to: string; icon: React.ElementType; label: string; adminOnly?: boolean; reporterOnly?: boolean }
+interface NavItem { to: string; icon: React.ElementType; label: string; roles?: string[] }
 
 const navItems: NavItem[] = [
   { to: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/incidents',       icon: AlertTriangle,   label: 'Incidents' },
-  { to: '/incidents/new',   icon: Plus,            label: 'New Incident' },
-  { to: '/analytics',       icon: Brain,           label: 'Analytics Hub' },
-  { to: '/lessons-learned', icon: BookOpen,        label: 'Lessons Library' },
-  { to: '/root-causes',      icon: Activity,        label: 'Root Causes' },
-  { to: '/support',         icon: ShieldAlert,     label: 'Support', reporterOnly: true },
-  { to: '/users',           icon: Users,           label: 'Users', adminOnly: true },
+  { to: '/incidents',       icon: AlertTriangle,   label: 'Incidents',       roles: ['admin', 'department_manager', 'investigator', 'action_owner'] },
+  { to: '/incidents/new',   icon: Plus,            label: 'Report Incident', roles: ['staff'] },
+  { to: '/analytics',       icon: Brain,           label: 'Analytics Hub',  roles: ['admin', 'department_manager'] },
+  { to: '/lessons-learned', icon: BookOpen,        label: 'Lessons Library', roles: ['admin', 'department_manager', 'investigator'] },
+  { to: '/root-causes',     icon: Activity,        label: 'Root Causes',    roles: ['admin', 'department_manager', 'investigator'] },
+  { to: '/support',         icon: ShieldAlert,     label: 'Support',        roles: ['staff'] },
+  { to: '/users',           icon: Users,           label: 'Users',          roles: ['admin'] },
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -39,19 +39,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <ShieldAlert className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-bold text-foreground leading-none">IMS</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">AI Incident Platform</p>
+            <p className="text-sm font-bold text-foreground leading-none">HMS</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Hospital Safety Platform</p>
           </div>
         </div>
 
+        {/* Dept badge for manager */}
+        {user?.role === 'department_manager' && user?.department && (
+          <div className="mx-3 mt-3 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20">
+            <p className="text-[10px] text-orange-400 font-medium uppercase tracking-wider">Department</p>
+            <p className="text-xs text-foreground font-semibold truncate">{user.department}</p>
+          </div>
+        )}
+
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map(({ to, icon: Icon, label, adminOnly, reporterOnly }) => {
-            if (adminOnly && user?.role !== 'admin') return null
-            if (reporterOnly && user?.role !== 'reporter') return null
-            if (to === '/incidents/new' && user?.role !== 'reporter') return null
-            if (['/incidents', '/lessons-learned', '/root-causes'].includes(to) && user?.role === 'reporter') return null
-            if (to === '/analytics' && user?.role !== 'admin' && user?.role !== 'risk_analyst') return null
+          {navItems.map(({ to, icon: Icon, label, roles }) => {
+            if (roles && !roles.includes(user?.role ?? '')) return null
             return (
               <NavLink
                 key={to}
@@ -99,7 +103,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-foreground truncate">{user?.name}</p>
-              <p className="text-[10px] text-muted-foreground capitalize">{user?.role}</p>
+              <p className="text-[10px] text-muted-foreground capitalize">{user?.role?.replace('_', ' ')}</p>
             </div>
             <Settings className="h-3.5 w-3.5 text-muted-foreground" />
           </NavLink>

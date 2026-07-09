@@ -86,7 +86,7 @@ export default function DashboardPage() {
     )
   }
 
-  if (user?.role === 'reporter') {
+  if (user?.role === 'staff') {
     return (
       <div className="space-y-8">
         {/* Header */}
@@ -109,10 +109,10 @@ export default function DashboardPage() {
 
         {/* Quick stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard title="My Reports"    value={stats?.total      ?? 0} icon={Activity}     color="text-blue-400"   sub="Total submitted" />
-          <KpiCard title="Under Review"  value={stats?.open       ?? 0} icon={Eye}          color="text-yellow-400" sub="Awaiting triage" />
-          <KpiCard title="In Progress"   value={stats?.inProgress ?? 0} icon={Clock}        color="text-purple-400" sub="Being handled" />
-          <KpiCard title="Resolved"      value={stats?.closed     ?? 0} icon={CheckCircle}  color="text-green-400"  sub="Incidents closed" />
+          <KpiCard title="My Reports"    value={stats?.total         ?? 0} icon={Activity}     color="text-blue-400"   sub="Total submitted" />
+          <KpiCard title="Open"          value={stats?.open          ?? 0} icon={Eye}          color="text-yellow-400" sub="Awaiting review" />
+          <KpiCard title="Accepted"      value={stats?.accepted      ?? 0} icon={Clock}        color="text-purple-400" sub="Under management" />
+          <KpiCard title="Resolved"      value={stats?.closed        ?? 0} icon={CheckCircle}  color="text-green-400"  sub="Incidents closed" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -243,7 +243,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard title="Assigned Incidents" value={stats?.total       ?? 0} icon={Activity}      color="text-blue-400"   sub="Total caseload" />
           <KpiCard title="Open"               value={stats?.open        ?? 0} icon={AlertTriangle}  color="text-red-400"    sub="Needs investigation" />
-          <KpiCard title="In Progress"        value={stats?.inProgress  ?? 0} icon={Clock}         color="text-purple-400" sub="Under investigation" />
+          <KpiCard title="Investigating"      value={stats?.investigating  ?? 0} icon={Clock}         color="text-purple-400" sub="Under investigation" />
           <KpiCard title="Resolved (Solved)"   value={stats?.closed      ?? 0} icon={CheckCircle}   color="text-green-400"  sub="Incidents solved" />
         </div>
 
@@ -403,11 +403,7 @@ export default function DashboardPage() {
                       </p>
                       <p className="text-xs text-muted-foreground">{formatDate(inc.createdAt)}</p>
                     </div>
-                    {inc.isRejected ? (
-                      <span className="text-[10px] px-2 py-0.5 font-bold bg-red-500/10 text-red-400 border border-red-500/20 rounded uppercase">
-                        Rejected
-                      </span>
-                    ) : inc.status === 'OPEN' ? (
+                    {inc.status === 'OPEN' ? (
                       <span className="text-[10px] px-2 py-0.5 font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded uppercase">
                         New
                       </span>
@@ -429,7 +425,7 @@ export default function DashboardPage() {
     )
   }
 
-  if (user?.role === 'incident_manager') {
+  if (user?.role === 'department_manager') {
     return (
       <div className="space-y-8">
         {/* Header */}
@@ -447,10 +443,10 @@ export default function DashboardPage() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard title="Total Reported" value={stats?.total       ?? 0} icon={Activity}      color="text-blue-400"   sub="All time" />
-          <KpiCard title="Needs Triage"   value={stats?.open        ?? 0} icon={AlertTriangle}  color="text-red-400"    sub="Unassigned / Open" />
-          <KpiCard title="In Progress"    value={stats?.inProgress  ?? 0} icon={Clock}         color="text-purple-400" sub="Under investigation" />
-          <KpiCard title="Resolved"       value={stats?.closed      ?? 0} icon={CheckCircle}   color="text-green-400"  sub="Incidents closed" />
+          <KpiCard title="Total Reported" value={stats?.total          ?? 0} icon={Activity}      color="text-blue-400"   sub="All time" />
+          <KpiCard title="Open (Triage)"  value={stats?.open           ?? 0} icon={AlertTriangle}  color="text-red-400"    sub="Needs review" />
+          <KpiCard title="Investigating"  value={stats?.investigating   ?? 0} icon={Clock}         color="text-purple-400" sub="Under investigation" />
+          <KpiCard title="Resolved"       value={stats?.closed         ?? 0} icon={CheckCircle}   color="text-green-400"  sub="Incidents closed" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -587,7 +583,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard title="Total"       value={stats?.total       ?? 0} icon={Activity}      color="text-blue-400"   sub="All time" />
         <KpiCard title="Open"        value={stats?.open        ?? 0} icon={AlertTriangle}  color="text-red-400"    sub="Needs attention" />
-        <KpiCard title="In Progress" value={stats?.inProgress  ?? 0} icon={Clock}         color="text-purple-400" sub="Being handled" />
+        <KpiCard title="Investigating" value={stats?.investigating  ?? 0} icon={Clock}         color="text-purple-400" sub="Being handled" />
         <KpiCard title="Closed"      value={stats?.closed      ?? 0} icon={CheckCircle}   color="text-green-400"  sub="Resolved" />
       </div>
 

@@ -62,7 +62,7 @@ export const incidentsApi = {
   getLessonsLearned: (search?: string) =>
     api.get<{ data: Incident[] }>('/incidents/lessons-learned', { params: { search } }),
 
-  // Object 2: Actions
+  // Actions
   addAction:    (id: number, data: Partial<IncidentAction>) =>
     api.post<{ data: IncidentAction }>(`/incidents/${id}/actions`, data),
   getActions:   (id: number) =>
@@ -70,7 +70,7 @@ export const incidentsApi = {
   updateAction: (id: number, aId: number, data: Partial<IncidentAction>) =>
     api.put<{ data: IncidentAction }>(`/incidents/${id}/actions/${aId}`, data),
 
-  // Object 3: Investigation
+  // Investigation
   addInvestigation: (id: number, data: Partial<Investigation>) =>
     api.post<{ data: Investigation }>(`/incidents/${id}/investigation`, data),
   getInvestigation: (id: number) =>
@@ -80,25 +80,25 @@ export const incidentsApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
-  // Object 4: Root Cause
+  // Root Cause
   addRootCause: (id: number, data: Partial<RootCause>) =>
     api.post<{ data: RootCause }>(`/incidents/${id}/root-cause`, data),
   getRootCause: (id: number) =>
     api.get<{ data: RootCause | null }>(`/incidents/${id}/root-cause`),
 
-  // Object 5: Controls
+  // Controls
   addControl:  (id: number, data: Partial<Control>) =>
     api.post<{ data: Control }>(`/incidents/${id}/controls`, data),
   getControls: (id: number) =>
     api.get<{ data: Control[] }>(`/incidents/${id}/controls`),
 
-  // Object 6: Review
+  // Review
   addReview:  (id: number, data: Partial<Review>) =>
     api.post<{ data: Review }>(`/incidents/${id}/review`, data),
   getReview:  (id: number) =>
     api.get<{ data: Review | null }>(`/incidents/${id}/review`),
 
-  // Object 7: Close
+  // Close
   close:      (id: number, data: Partial<Closure>) =>
     api.post<{ data: Closure; message: string }>(`/incidents/${id}/close`, data),
   getClosure: (id: number) =>
@@ -108,19 +108,21 @@ export const incidentsApi = {
   getTimeline: (id: number) =>
     api.get<{ data: TimelineEvent[] }>(`/incidents/${id}/timeline`),
 
+  // Analytics
   getRootCauseAnalytics: (params?: { startDate?: string; endDate?: string; department?: string; severity?: string }) =>
     api.get<{ data: any }>('/incidents/root-cause-analytics', { params }),
-
   getControlEffectiveness: () =>
     api.get<{ data: any[] }>('/incidents/control-effectiveness'),
 
-  // Investigation workflow
-  submitInvestigation: (id: number) =>
-    api.post<{ data: Incident }>(`/incidents/${id}/submit-investigation`),
-  rejectInvestigation: (id: number, comment: string) =>
-    api.post<{ data: Incident }>(`/incidents/${id}/reject-investigation`, { comment }),
-  approveInvestigation: (id: number) =>
-    api.post<{ data: Incident }>(`/incidents/${id}/approve-investigation`),
+  // ── NEW: Lifecycle transitions ─────────────────────────────────────────
+  acceptIncident:     (id: number) =>
+    api.post<{ data: Incident; message: string }>(`/incidents/${id}/accept`),
+  rejectIncident:     (id: number, comment: string) =>
+    api.post<{ data: Incident; message: string }>(`/incidents/${id}/reject`, { comment }),
+  assignInvestigator: (id: number, investigatorId: number) =>
+    api.post<{ data: Incident; message: string }>(`/incidents/${id}/assign-investigator`, { investigatorId }),
+  assignActionOwner:  (id: number, actionOwnerId: number, actionDescription?: string) =>
+    api.post<{ data: Incident; message: string }>(`/incidents/${id}/assign-action-owner`, { actionOwnerId, actionDescription }),
 }
 
 // ── Stats ──────────────────────────────────────────────────────────────────
@@ -130,15 +132,17 @@ export const statsApi = {
 
 // ── Users ──────────────────────────────────────────────────────────────────
 export const usersApi = {
-  list:        () => api.get<{ data: User[] }>('/users'),
-  updateMe:    (data: { name?: string; email?: string }) =>
+  list:              () => api.get<{ data: User[] }>('/users'),
+  listInvestigators: () => api.get<{ data: User[] }>('/users/investigators'),
+  listActionOwners:  () => api.get<{ data: User[] }>('/users/action-owners'),
+  updateMe:          (data: { name?: string; email?: string }) =>
     api.put<{ data: User }>('/users/me', data),
-  changePass:  (data: { currentPassword: string; newPassword: string }) =>
+  changePass:        (data: { currentPassword: string; newPassword: string }) =>
     api.put('/users/me/password', data),
-  create:      (data: Partial<User> & { password: string }) =>
+  create:            (data: Partial<User> & { password: string }) =>
     api.post<{ data: User }>('/users', data),
-  updateRole:  (id: number, role: string) =>
-    api.put<{ data: User }>(`/users/${id}/role`, { role }),
+  updateRole:        (id: number, role: string, department?: string) =>
+    api.put<{ data: User }>(`/users/${id}/role`, { role, department }),
 }
 
 // ── AI ─────────────────────────────────────────────────────────────────────
@@ -162,12 +166,12 @@ export const aiApi = {
 
 // ── Chat ───────────────────────────────────────────────────────────────────
 export const chatApi = {
-  getContacts: () => 
+  getContacts: () =>
     api.get<{ data: ChatContact[] }>('/chat/contacts'),
-  getMessages: (contactId: number) => 
+  getMessages: (contactId: number) =>
     api.get<{ data: ChatMessage[] }>(`/chat/messages/${contactId}`),
-  sendMessage: (receiverId: number, content: string) => 
+  sendMessage: (receiverId: number, content: string) =>
     api.post<{ data: ChatMessage }>('/chat/messages', { receiverId, content }),
-  markAsRead: (senderId: number) => 
+  markAsRead: (senderId: number) =>
     api.put(`/chat/messages/${senderId}/read`),
 }

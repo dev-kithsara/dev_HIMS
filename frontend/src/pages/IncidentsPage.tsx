@@ -142,7 +142,7 @@ export default function IncidentsPage() {
           <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5">
             <Download className="h-3.5 w-3.5" /> Export CSV
           </Button>
-          {user?.role === 'reporter' && (
+          {user?.role === 'staff' && (
             <Button asChild size="sm" className="gap-1.5">
               <Link to="/incidents/new">
                 <Plus className="h-3.5 w-3.5" /> New Incident
@@ -173,7 +173,11 @@ export default function IncidentsPage() {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="OPEN">Open</SelectItem>
-                <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                <SelectItem value="OPEN">Open</SelectItem>
+                <SelectItem value="ACCEPTED">Accepted</SelectItem>
+                <SelectItem value="REJECTED">Rejected</SelectItem>
+                <SelectItem value="INVESTIGATING">Investigating</SelectItem>
+                <SelectItem value="PENDING_ACTION">Pending Action</SelectItem>
                 <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
                 <SelectItem value="CLOSED">Closed</SelectItem>
               </SelectContent>
@@ -212,7 +216,7 @@ export default function IncidentsPage() {
             <div className="flex flex-col items-center py-20 gap-3 text-center">
               <AlertTriangle className="h-10 w-10 text-muted-foreground/40" />
               <p className="text-muted-foreground text-sm">No incidents found</p>
-              {user?.role !== 'risk_analyst' && (
+              {user?.role !== 'investigator' && user?.role !== 'action_owner' && (
                 <Button asChild size="sm">
                   <Link to="/incidents/new">Create your first incident</Link>
                 </Button>
@@ -261,7 +265,7 @@ export default function IncidentsPage() {
                           <Button variant="ghost" size="icon" asChild className="h-7 w-7">
                             <Link to={`/incidents/${inc.id}`}><Eye className="h-3.5 w-3.5" /></Link>
                           </Button>
-                          {(user?.role === 'admin' || user?.role === 'incident_manager') && (
+                          {(user?.role === 'admin' || user?.role === 'department_manager') && (
                             <Button
                               variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
                               onClick={() => { if (confirm('Delete this incident?')) deleteMut.mutate(inc.id) }}

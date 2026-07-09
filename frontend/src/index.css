@@ -4,26 +4,41 @@
 
 @layer base {
   :root {
-    --background:  219 48% 8%;   /* #0B121F */
-    --foreground:  210 40% 98%;  /* #F8FAFC */
-    --card:        217 46% 12%;  /* #111C2E */
-    --card-foreground: 210 40% 98%;
-    --popover:     217 46% 12%;
-    --popover-foreground: 210 40% 98%;
-    --primary:     216 71% 20%;  /* #0F2D59 */
-    --primary-foreground: 210 40% 98%;
-    --secondary:   217 46% 18%;  
-    --secondary-foreground: 210 40% 98%;
-    --muted:       217 46% 16%;
-    --muted-foreground: 215 20% 65%; /* #94A3B8 */
-    --accent:      217 91% 60%;  /* #3B82F6 */
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 84% 60%;    /* Red - mainly for destructive buttons */
-    --destructive-foreground: 210 40% 98%;
-    --border:      217 46% 22%;
-    --input:       217 46% 18%;
-    --ring:        217 91% 60%;  /* #3B82F6 */
-    --radius:      0.75rem;
+    /* ── Hospital Clinical Palette ──────────────────────────────────────────
+       Primary Teal:  #55B5A7  →  HSL(171, 39%, 52%)
+       Slate Blue:    #5593B5  →  HSL(201, 39%, 52%)
+       Ice Blue:      #F0FAFF  →  HSL(204, 100%, 97%)
+    ────────────────────────────────────────────────────────────────────── */
+
+    --background:       210 35% 6%;    /* Deep navy-slate   #090f16  */
+    --foreground:       204 50% 96%;   /* Ice White         #eef7fc  */
+
+    --card:             210 32% 9%;    /* Dark panel        #0e1720  */
+    --card-foreground:  204 50% 96%;
+
+    --popover:          210 32% 9%;
+    --popover-foreground: 204 50% 96%;
+
+    --primary:          171 39% 46%;   /* Clinical Teal     #45a79a  */
+    --primary-foreground: 210 35% 6%;
+
+    --secondary:        201 39% 46%;   /* Slate Blue        #4588ab  */
+    --secondary-foreground: 204 50% 96%;
+
+    --muted:            210 28% 13%;
+    --muted-foreground: 204 20% 62%;
+
+    --accent:           171 50% 55%;   /* Bright Teal       #4dc4b5  */
+    --accent-foreground: 210 35% 6%;
+
+    --destructive:      0 84% 60%;
+    --destructive-foreground: 204 50% 96%;
+
+    --border:           201 28% 20%;
+    --input:            201 28% 14%;
+    --ring:             171 39% 52%;
+
+    --radius:           0.75rem;
   }
 
   * {
@@ -52,9 +67,12 @@
     @apply bg-card/60 backdrop-blur-xl border border-border/50 rounded-xl;
   }
 
-  /* Gradient text */
+  /* Gradient text — teal → sky blue (clinical palette) */
   .gradient-text {
-    @apply bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent;
+    background: linear-gradient(135deg, #55B5A7 0%, #5593B5 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   /* Severity badges */
@@ -63,14 +81,28 @@
   .severity-high     { @apply bg-orange-500/15 text-orange-400 border border-orange-500/25 rounded-full; }
   .severity-critical { @apply bg-red-500/15    text-red-400    border border-red-500/25    rounded-full; }
 
-  /* Status badges */
-  .status-open         { @apply bg-blue-500/15   text-blue-400   border border-blue-500/25   rounded-full; }
-  .status-in_progress  { @apply bg-purple-500/15 text-purple-400 border border-purple-500/25 rounded-full; }
-  .status-under_review { @apply bg-yellow-500/15 text-yellow-400 border border-yellow-500/25 rounded-full; }
-  .status-closed       { @apply bg-green-500/15  text-green-400  border border-green-500/25  rounded-full; }
+  /* Status badges — updated for new lifecycle */
+  .status-open            { @apply bg-sky-500/15    text-sky-400    border border-sky-500/25    rounded-full; }
+  .status-accepted        { @apply bg-teal-500/15   text-teal-400   border border-teal-500/25   rounded-full; }
+  .status-rejected        { @apply bg-red-500/15    text-red-400    border border-red-500/25    rounded-full; }
+  .status-investigating   { @apply bg-blue-500/15   text-blue-400   border border-blue-500/25   rounded-full; }
+  .status-pending_action  { @apply bg-amber-500/15  text-amber-400  border border-amber-500/25  rounded-full; }
+  .status-in_progress     { @apply bg-purple-500/15 text-purple-400 border border-purple-500/25 rounded-full; }
+  .status-under_review    { @apply bg-yellow-500/15 text-yellow-400 border border-yellow-500/25 rounded-full; }
+  .status-closed          { @apply bg-green-500/15  text-green-400  border border-green-500/25  rounded-full; }
 
   /* Glow button */
   .btn-glow {
-    @apply shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-shadow;
+    box-shadow: 0 4px 24px 0 hsla(171, 39%, 52%, 0.3);
+    transition: box-shadow 0.2s ease;
+  }
+  .btn-glow:hover {
+    box-shadow: 0 4px 32px 0 hsla(171, 39%, 52%, 0.55);
+  }
+
+  /* Teal-blue gradient border card highlight */
+  .card-clinical {
+    border-image: linear-gradient(135deg, #55B5A7, #5593B5) 1;
+    @apply rounded-xl border;
   }
 }

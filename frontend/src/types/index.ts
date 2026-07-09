@@ -1,44 +1,51 @@
 // ── Core Entities ──────────────────────────────────────────────────────────
 export type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-export type IncidentStatus = 'OPEN' | 'IN_PROGRESS' | 'UNDER_REVIEW' | 'CLOSED'
-export type UserRole = 'admin' | 'incident_manager' | 'investigator' | 'risk_analyst' | 'reporter'
+export type IncidentStatus =
+  | 'OPEN'
+  | 'ACCEPTED'
+  | 'REJECTED'
+  | 'INVESTIGATING'
+  | 'PENDING_ACTION'
+  | 'UNDER_REVIEW'
+  | 'CLOSED'
+export type UserRole = 'admin' | 'department_manager' | 'investigator' | 'action_owner' | 'staff'
 
 export interface User {
-  id:        number
-  name:      string
-  email:     string
-  role:      UserRole
-  isActive:  boolean
-  createdAt: string
+  id:          number
+  name:        string
+  email:       string
+  role:        UserRole
+  department?: string
+  isActive:    boolean
+  createdAt:   string
 }
 
 export interface Incident {
-  id:                 number
-  title:              string
-  description:        string
-  severity:           Severity
-  category?:          string
-  location?:          string
-  department?:        string
-  reportedBy?:        number
-  reporter?:          { id: number; name: string; email: string }
-  status:             IncidentStatus
-  aiProcessed:        boolean
+  id:                  number
+  title:               string
+  description:         string
+  severity:            Severity
+  category?:           string
+  location?:           string
+  department?:         string
+  reportedBy?:         number
+  reporter?:           { id: number; name: string; email: string }
+  status:              IncidentStatus
+  aiProcessed:         boolean
   predictedRiskScore?: number
-  clusterId?:         number
-  investigatorId?:    number | null
-  deletedAt?:         string
-  isRejected?:        boolean
-  rejectionComment?:  string | null
-  createdAt:          string
-  updatedAt:          string
+  clusterId?:          number
+  deletedAt?:          string
+  isRejected?:         boolean
+  rejectionComment?:   string | null
+  createdAt:           string
+  updatedAt:           string
   // lifecycle objects (populated by getById)
-  actions?:           IncidentAction[]
-  investigation?:     Investigation | null
-  rootCause?:         RootCause | null
-  controls?:          Control[]
-  review?:            Review | null
-  closure?:           Closure | null
+  actions?:            IncidentAction[]
+  investigation?:      Investigation | null
+  rootCause?:          RootCause | null
+  controls?:           Control[]
+  review?:             Review | null
+  closure?:            Closure | null
 }
 
 export interface IncidentAction {
@@ -55,64 +62,64 @@ export interface IncidentAction {
 }
 
 export interface Investigation {
-  id:                number
-  incidentId:        number
-  findings?:         string
-  evidence?:         string
-  evidenceFiles?:    string[]
-  investigatedBy?:   number
-  investigator?:     { id: number; name: string }
-  investigationDate?: string
-  createdAt:         string
-  updatedAt:         string
-}
-
-export interface RootCause {
-  id:                  number
-  incidentId:          number
-  rootCauseCategory:   string
-  description:         string
-  contributingFactors?: string
-  causalChain?:        string
-  createdAt:           string
-  updatedAt:           string
-}
-
-export interface Control {
   id:                 number
   incidentId:         number
-  controlType:        'Preventive' | 'Detective' | 'Corrective'
-  description:        string
-  owner?:             number
-  controlOwner?:      { id: number; name: string }
-  implementationDate?: string
-  status:             'PLANNED' | 'IN_PROGRESS' | 'IMPLEMENTED' | 'VERIFIED'
+  findings?:          string
+  evidence?:          string
+  evidenceFiles?:     string[]
+  investigatedBy?:    number
+  investigator?:      { id: number; name: string }
+  investigationDate?: string
   createdAt:          string
   updatedAt:          string
 }
 
-export interface Review {
+export interface RootCause {
+  id:                   number
+  incidentId:           number
+  rootCauseCategory:    string
+  description:          string
+  contributingFactors?: string
+  causalChain?:         string
+  createdAt:            string
+  updatedAt:            string
+}
+
+export interface Control {
   id:                  number
   incidentId:          number
-  reviewerId?:         number
-  reviewer?:           { id: number; name: string }
-  reviewNotes?:        string
-  effectivenessRating?: number
-  reviewDate?:         string
+  controlType:         'Preventive' | 'Detective' | 'Corrective'
+  description:         string
+  owner?:              number
+  controlOwner?:       { id: number; name: string }
+  implementationDate?: string
+  status:              'PLANNED' | 'IN_PROGRESS' | 'IMPLEMENTED' | 'VERIFIED'
   createdAt:           string
   updatedAt:           string
 }
 
+export interface Review {
+  id:                   number
+  incidentId:           number
+  reviewerId?:          number
+  reviewer?:            { id: number; name: string }
+  reviewNotes?:         string
+  effectivenessRating?: number
+  reviewDate?:          string
+  createdAt:            string
+  updatedAt:            string
+}
+
 export interface Closure {
-  id:             number
-  incidentId:     number
-  closureSummary: string
+  id:              number
+  incidentId:      number
+  closureSummary:  string
   lessonsLearned?: string
-  closedBy?:      number
-  closer?:        { id: number; name: string }
-  closureDate:    string
-  createdAt:      string
-  updatedAt:      string
+  closedBy?:       number
+  closer?:         { id: number; name: string }
+  closureDate:     string
+  createdAt:       string
+  updatedAt:       string
 }
 
 // ── API Response Shapes ────────────────────────────────────────────────────
@@ -122,15 +129,20 @@ export interface PaginatedResponse<T> {
 }
 
 export interface Stats {
-  total:       number
-  open:        number
-  inProgress:  number
-  underReview: number
-  closed:      number
-  bySeverity:  { LOW: number; MEDIUM: number; HIGH: number; CRITICAL: number }
-  topCategories: { category: string; count: number }[]
+  total:          number
+  open:           number
+  accepted:       number
+  investigating:  number
+  pendingAction:  number
+  underReview:    number
+  closed:         number
+  rejected:       number
+  // legacy
+  inProgress:     number
+  bySeverity:     { LOW: number; MEDIUM: number; HIGH: number; CRITICAL: number }
+  topCategories:  { category: string; count: number }[]
   recentIncidents: Pick<Incident, 'id' | 'title' | 'severity' | 'status' | 'createdAt'>[]
-  overdueActions?: (IncidentAction & { incident?: { id: number; title: string } })[]
+  overdueActions?:  (IncidentAction & { incident?: { id: number; title: string } })[]
   upcomingActions?: (IncidentAction & { incident?: { id: number; title: string } })[]
 }
 
@@ -199,7 +211,7 @@ export interface RiskSummary {
 }
 
 export interface MonthlyTrendPoint {
-  month:    string   // "YYYY-MM"
+  month:    string
   LOW:      number
   MEDIUM:   number
   HIGH:     number

@@ -7,11 +7,44 @@ const prisma = new PrismaClient();
 
 router.use(authenticate);
 
-// List all users (admin/incident_manager only)
-router.get('/', authorize('admin', 'incident_manager'), async (req, res, next) => {
+// List users (admin sees all; department_manager sees investigators + action_owners + own dept)
+router.get('/', authorize('admin', 'department_manager'), async (req, res, next) => {
+  try {
+    let where = {};
+    if (req.user.role === 'department_manager') {
+      where = {
+        OR: [
+          { role: 'investigator' },
+          { role: 'action_owner' },
+          ...(req.user.department ? [{ department: req.user.department }] : [])
+        ]
+      };
+    }
+    const users = await prisma.user.findMany({
+      where,
+      select: { id: true, name: true, email: true, role: true, department: true, isActive: true, createdAt: true }
+    });
+    res.json({ data: users });
+  } catch (err) { next(err); }
+});
+
+// List only investigators (for manager assignment)
+router.get('/investigators', authorize('admin', 'department_manager'), async (req, res, next) => {
   try {
     const users = await prisma.user.findMany({
-      select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true }
+      where: { role: 'investigator', isActive: true },
+      select: { id: true, name: true, email: true, role: true }
+    });
+    res.json({ data: users });
+  } catch (err) { next(err); }
+});
+
+// List only action owners (for manager assignment)
+router.get('/action-owners', authorize('admin', 'department_manager'), async (req, res, next) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { role: 'action_owner', isActive: true },
+      select: { id: true, name: true, email: true, role: true }
     });
     res.json({ data: users });
   } catch (err) { next(err); }
@@ -48,10 +81,11 @@ router.put('/me/password', async (req, res, next) => {
 router.post('/', authorize('admin'), async (req, res, next) => {
   try {
     const schema = z.object({
-      name:     z.string().min(2),
-      email:    z.string().email(),
-      password: z.string().min(6),
-      role:     z.enum(['admin', 'incident_manager', 'investigator', 'risk_analyst'])
+      name:       z.string().min(2),
+      email:      z.string().email(),
+      password:   z.string().min(6),
+      role:       z.enum(['admin', 'department_manager', 'investigator', 'action_owner', 'staff']),
+      department: z.string().optional()
     });
     const data   = schema.parse(req.body);
     const hashed = await bcrypt.hash(data.password, 10);
@@ -61,12 +95,18 @@ router.post('/', authorize('admin'), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Update user role (admin only)
+// Update user role/department (admin only)
 router.put('/:id/role', authorize('admin'), async (req, res, next) => {
   try {
-    const schema = z.object({ role: z.enum(['admin', 'incident_manager', 'investigator', 'risk_analyst']) });
-    const { role } = schema.parse(req.body);
-    const user     = await prisma.user.update({ where: { id: parseInt(req.params.id) }, data: { role } });
+    const schema = z.object({
+      role:       z.enum(['admin', 'department_manager', 'investigator', 'action_owner', 'staff']),
+      department: z.string().optional().nullable()
+    });
+    const { role, department } = schema.parse(req.body);
+    const user = await prisma.user.update({
+      where: { id: parseInt(req.params.id) },
+      data:  { role, department: department ?? null }
+    });
     const { password: _, ...safe } = user;
     res.json({ data: safe });
   } catch (err) { next(err); }
