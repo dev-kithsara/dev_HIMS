@@ -1,0 +1,66 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* ── KAIROS Blue Family — Core Palette ───────────────────── */
+  --k-navy:           #1E2B5E;   /* Primary brand — deep royal blue  */
+  --k-navy-dark:      #16204A;   /* Sidebar active / pressed         */
+  --k-navy-light:     #192651;   /* Sidebar hover                    */
+  --k-cobalt:         #1B367A;   /* Cobalt blue — secondary actions  */
+  --k-royal:          #2952C4;   /* Royal blue — interactive elements*/
+  --k-true-blue:      #5485E0;   /* True blue — links, highlights    */
+  --k-sky:            #6E99E8;   /* Sky blue — chart accents         */
+  --k-blue-gray:      #6B7494;   /* Blue-gray — muted/secondary text */
+  --k-blue-gray-lt:   #9BA4BC;   /* Light blue-gray — placeholders   */
+
+  /* ── Content Area ────────────────────────────────────────── */
+  --k-bg:             #EDEEF3;   /* Page background — icy blue-white */
+  --k-surface:        #F7F8FA;   /* Card / panel surface             */
+  --k-surface-alt:    #F1F3F8;   /* Alternate surface (table rows)   */
+  --k-border:         #D8DCE8;   /* Soft blue border                 */
+  --k-border-dark:    #C0CBE0;   /* Slightly darker border           */
+
+  /* ── Text ────────────────────────────────────────────────── */
+  --k-text-primary:   #1A2447;   /* Deep navy — headings             */
+  --k-text-body:      #3B4565;   /* Slate — body text                */
+  --k-text-muted:     #6B7494;   /* Muted — secondary text           */
+  --k-text-faint:     #9BA4BC;   /* Faint — labels, placeholders     */
+
+  /* ── Sidebar ─────────────────────────────────────────────── */
+  --k-sidebar-bg:     #1E2B5E;
+  --k-sidebar-border: #192651;
+  --k-sidebar-text:   rgba(255,255,255,0.72);
+  --k-sidebar-active: rgba(255,255,255,0.14);
+  --k-sidebar-hover:  rgba(255,255,255,0.08);
+
+  /* ── Header ──────────────────────────────────────────────── */
+  --k-header-bg:      #1E2B5E;
+  --k-header-border:  #192651;
+
+  /* ── Danger / Status ─────────────────────────────────────── */
+  --k-danger:         #EF4444;
+
+  /* ── Severity ────────────────────────────────────────────── */
+  --sev-low:          #22C55E;
+  --sev-medium:       #EAB308;
+  --sev-high:         #F97316;
+  --sev-critical:     #EF4444;
+
+  /* ── Status ──────────────────────────────────────────────── */
+  --status-open:      #5485E0;
+  --status-accepted:  #10B981;
+  --status-rejected:  #EF4444;
+  --status-investing: #8B5CF6;
+  --status-pending:   #F59E0B;
+  --status-progress:  #EC4899;
+  --status-review:    #0EA5E9;
+  --status-closed:    #22C55E;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--k-border-dark); border-radius: 99px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--k-true-blue); }
+
