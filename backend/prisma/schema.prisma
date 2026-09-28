@@ -1,0 +1,107 @@
+// This is your Prisma schema file
+
+generator client {
+  provider      = "prisma-client-js"
+  // Tell Prisma to generate engine binaries for:
+  //  - "native"                    → local Windows dev machine
+  //  - "linux-musl-openssl-3.0.x" → Alpine Linux (Docker) with OpenSSL 3.x
+  // Without this, Prisma downloads the OpenSSL 1.1 engine binary which
+  // doesn't work on Alpine 3.18+ (which ships OpenSSL 3 only).
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Use an enum to manage the various states of an Incident
+enum IncidentStatus {
+  OPEN
+  ACCEPTED
+  REJECTED
+  INVESTIGATING
+  PENDING_ACTION
+  UNDER_REVIEW
+  CLOSED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model User {
+  id                    Int        @id @default(autoincrement())
+  email                 String     @unique
+  password              String
+  name                  String
+  role                  String     // Admin, Manager, Staff, etc.
+  departmentId          Int
+  department            Department @relation(fields: [departmentId], references: [id])
+  
+  // 2. Use relation names because a single User can have multiple relationships
+  reportedIncidents     Incident[] @relation("Reporter")
+  investigatedIncidents Incident[] @relation("Investigator")
+  ownedActions          Incident[] @relation("ActionOwner")
+
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+}
+
+model Department {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  users     User[]
+  incidents Incident[]
+}
+
+model Incident {
+  id                Int            @id @default(autoincrement())
+  title             String
+  description       String
+  severity          Severity
+  category          String
+  location          String
+  status            IncidentStatus @default(OPEN)
+  rejectionReason   String?        // Value provided only if rejected (optional)
+
+  // Root Cause Analysis (Feature 4)
+  rootCause         String?        @map("root_cause")
+  rootCauseCategory String?        @map("root_cause_category")
+
+  correctiveAction String?
+  
+  // 3. Foreign keys and relationships
+  departmentId      Int
+  department        Department     @relation(fields: [departmentId], references: [id])
+  
+  reporterId        Int
+  reporter          User           @relation("Reporter", fields: [reporterId], references: [id])
+  
+  investigatorId    Int?           // Optional because not assigned initially
+  investigator      User?          @relation("Investigator", fields: [investigatorId], references: [id])
+  
+  actionOwnerId     Int?           // Optional because not assigned initially
+  actionOwner       User?          @relation("ActionOwner", fields: [actionOwnerId], references: [id])
+
+  // File attachments (Kasun's feature)
+  attachments       IncidentAttachment[]
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+model IncidentAttachment {
+  id         Int      @id @default(autoincrement())
+  fileName   String
+  filePath   String
+  fileType   String
+
+  incidentId Int
+  incident   Incident @relation(fields: [incidentId], references: [id])
+
+  uploadedAt DateTime @default(now())
+}
