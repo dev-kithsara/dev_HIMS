@@ -13,6 +13,17 @@ const workspaceInclude = {
   timeline: { orderBy: { occurredAt: 'asc' as const } }, evidence: { orderBy: { createdAt: 'asc' as const } },
   aiFeedback: { orderBy: { createdAt: 'desc' as const }, take: 30 },
 } satisfies Prisma.InvestigationInclude;
+const textEmbedding = (value: string, dimensions = 64) => {
+  const vector = Array.from({ length: dimensions }, () => 0);
+  value.toLowerCase().match(/[a-z0-9]+/g)?.forEach((token) => {
+    let hash = 2166136261;
+    for (const character of token) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+    vector[Math.abs(hash) % dimensions] += hash % 2 === 0 ? 1 : -1;
+  });
+  const magnitude = Math.sqrt(vector.reduce((sum, item) => sum + item * item, 0)) || 1;
+  return vector.map((item) => item / magnitude);
+};
+const cosineSimilarity = (left: number[], right: number[]) => left.reduce((sum, item, index) => sum + item * right[index], 0);
 
 export class InvestigationService {
   private assertOwner(incident: { investigatorId: number | null }, actor: InvestigationActor) {
@@ -101,13 +112,19 @@ export class InvestigationService {
   }
   async aiInsights(incidentId: number, actor: InvestigationActor) {
     const record = await this.ensureRecord(incidentId, actor);
-    const candidates = await prisma.incident.findMany({ where: { id: { not: incidentId }, investigatorId: actor.id }, select: { id: true, title: true, category: true, location: true, severity: true, rootCauseCategory: true, rootCause: true, investigationRecord: { select: { method: true, rootCauseSubcategory: true } } }, take: 25, orderBy: { updatedAt: 'desc' } });
-    const scored = candidates.map(item => { const matches = [item.category === record.incident.category && 'category', item.location === record.incident.location && 'location', item.severity === record.incident.severity && 'severity', item.rootCauseCategory && item.rootCauseCategory === record.rootCauseCategory && 'root cause'].filter(Boolean) as string[]; return { ...item, matchedFields: matches, similarity: Math.min(.96, .45 + matches.length * .13) }; }).filter(x => x.matchedFields.length).sort((a,b) => b.similarity-a.similarity).slice(0,8);
+    const candidates = await prisma.incident.findMany({ where: { id: { not: incidentId }, investigatorId: actor.id }, select: { id: true, title: true, description: true, category: true, location: true, severity: true, rootCauseCategory: true, rootCause: true, investigationRecord: { select: { method: true, rootCauseSubcategory: true } } }, take: 25, orderBy: { updatedAt: 'desc' } });
+    const queryEmbedding = textEmbedding([record.incident.title, record.incident.description, record.incident.category, record.incident.location, record.rootCauseDescription ?? ''].join(' '));
+    const scored = candidates.map(item => {
+      const matches = [item.category === record.incident.category && 'category', item.location === record.incident.location && 'location', item.severity === record.incident.severity && 'severity', item.rootCauseCategory && item.rootCauseCategory === record.rootCauseCategory && 'root cause'].filter(Boolean) as string[];
+      const candidateEmbedding = textEmbedding([item.title, item.description, item.category, item.location, item.rootCause ?? ''].join(' '));
+      const textScore = Math.max(0, cosineSimilarity(queryEmbedding, candidateEmbedding));
+      return { ...item, matchedFields: matches, similarity: Math.min(.99, textScore * .7 + (matches.length / 4) * .3) };
+    }).filter(x => x.similarity >= .15).sort((a,b) => b.similarity-a.similarity).slice(0,8);
     const methodSuggestions: Array<{ method: InvestigationMethod; reason: string }> = record.incident.category.toLowerCase().includes('equipment') ? [{ method: 'FAULT_TREE', reason: 'Equipment incidents benefit from branching failure-path analysis.' }] : [{ method: 'FIVE_WHYS', reason: 'Useful for tracing a clear causal chain from the reported event.' }, { method: 'FISHBONE', reason: 'Useful when people, process, equipment, and environment may interact.' }];
     const clusters = Object.values(candidates.reduce((map: Record<string, any>, item) => { const key = `${item.category} • ${item.location}`; map[key] ??= { name: key, count: 0, incidentIds: [] }; map[key].count += 1; map[key].incidentIds.push(item.id); return map; }, {})).sort((a:any,b:any)=>b.count-a.count).slice(0,8);
     const timelineSummary = record.timeline.length ? `${record.timeline.length} chronological events from ${new Date(record.timeline[0].occurredAt).toLocaleDateString()} to ${new Date(record.timeline.at(-1)!.occurredAt).toLocaleDateString()}.` : 'No timeline events are recorded yet.';
     const evidenceSummary = `${record.incident.attachments.length} incident files and ${record.evidence.length} investigation references are available. Review original sources before accepting this summary.`;
-    return { modelVersion: 'investigator-rules-v1.0', disclaimer: 'AI-assisted context; it never overwrites Investigator findings.', similarIncidents: scored, clusters, methodSuggestions, summaries: { timeline: timelineSummary, evidence: evidenceSummary } };
+    return { modelVersion: 'local-text-embedding-v1.0', disclaimer: 'AI-assisted context; it never overwrites Investigator findings.', similarIncidents: scored, clusters, methodSuggestions, summaries: { timeline: timelineSummary, evidence: evidenceSummary } };
   }
   async recordAiFeedback(incidentId: number, input: any, actor: InvestigationActor) { const record = await this.ensureRecord(incidentId, actor); const feedback = await prisma.investigationAiFeedback.create({ data: { investigationId: record.id, ...input } }); await this.audit(actor, 'AI_FEEDBACK', incidentId, undefined, feedback); return feedback; }
 

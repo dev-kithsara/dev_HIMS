@@ -16,9 +16,9 @@ Every investigation endpoint validates that the incident is assigned to the sign
 
 ## Explainable AI assistance
 
-The initial implementation is a deterministic, explainable rules foundation:
+The initial implementation combines a deterministic local text-embedding similarity baseline with explainable workflow rules:
 
-- Similar incidents are ranked only from incidents assigned to the Investigator, with scores and matched fields.
+- Similar incidents use hashed text vectors and cosine similarity over title, description, category, location, and RCA text. Results are ranked only from incidents assigned to the Investigator and expose scores plus matched fields.
 - Cluster summaries group authorized cases by category and location.
 - Method suggestions explain why Five Whys, Fishbone, or Fault Tree may fit.
 - Evidence and timeline summaries use authorized metadata and never overwrite human findings.
