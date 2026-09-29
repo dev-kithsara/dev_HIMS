@@ -1,175 +1,18 @@
-import { useMemo } from "react";
-import { IncidentCard } from '../components/IncidentCard';
-import { useAssignedIncidents } from '../hooks/useIncidents';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import type { Incident } from "../types/incident";
-import { Inbox } from 'lucide-react';
+import { investigationApi } from '../api/investigation.api';
 
-// ── Color Tokens ──────────────────────────────────────────────────────────
-const NAVY    = '#1E2B5E';
-const COBALT  = '#1B367A';
-const ROYAL   = '#2952C4';
-const SURFACE = '#F7F8FA';
-const BORDER  = '#D8DCE8';
-const TEXT    = '#1A2447';
-const MUTED   = '#6B7494';
-
-const InvestigatorDashboard = () => {
-  const navigate = useNavigate();
-  const {
-    data: incidents,
-    isLoading,
-    isError,
-    error,
-  } = useAssignedIncidents();
-
-  const stats = useMemo(() => {
-    const count = incidents?.length ?? 0;
-    const activeCount = incidents?.filter((incident) =>
-      ['OPEN', 'ACCEPTED', 'INVESTIGATING', 'PENDING_ACTION'].includes(incident.status)
-    ).length ?? 0;
-    const reviewCount = incidents?.filter((incident) =>
-      ['UNDER_REVIEW', 'CLOSED'].includes(incident.status)
-    ).length ?? 0;
-    return { count, activeCount, reviewCount };
-  }, [incidents]);
-
-  const handleIncidentClick = (incident: Incident) => {
-    navigate(`/investigator/${incident.id}`, { state: { incident } });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div
-          className="animate-spin rounded-full h-11 w-11 border-[3px] border-t-transparent"
-          style={{ borderColor: `${ROYAL} transparent ${ROYAL} ${ROYAL}` }}
-        />
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="p-4 rounded-xl" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA' }}>
-        <h2 className="font-bold text-red-600">Unable to load incidents</h2>
-        <p className="mt-1 text-sm text-red-500">
-          {error instanceof Error ? error.message : 'Unknown error occurred'}
-        </p>
-      </div>
-    );
-  }
-
-  if (!incidents || incidents.length === 0) {
-    return (
-      <div className="space-y-6 pb-6">
-        <div
-          className="p-8 rounded-2xl text-center"
-          style={{
-            background: `linear-gradient(135deg, ${NAVY} 0%, #192651 60%, ${COBALT} 100%)`,
-            boxShadow: '0 4px 24px rgba(30,43,94,0.18)',
-          }}
-        >
-          <span
-            className="inline-flex rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] mb-4 text-white/90"
-            style={{ backgroundColor: 'rgba(255,255,255,0.14)' }}
-          >
-            Investigator Workspace
-          </span>
-          <h1 className="text-3xl font-bold text-white">Investigator Dashboard</h1>
-          <p className="mt-2 text-sm text-white/70">
-            Review and resolve the incidents assigned to you.
-          </p>
-        </div>
-
-        <div
-          className="flex flex-col items-center justify-center p-16 text-center rounded-2xl border"
-          style={{ backgroundColor: SURFACE, borderColor: BORDER }}
-        >
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-700">
-            <Inbox className="w-8 h-8" />
-          </div>
-          <h3 className="text-lg font-bold" style={{ color: TEXT }}>
-            No assigned incidents found
-          </h3>
-          <p className="mt-2 max-w-md text-sm" style={{ color: MUTED }}>
-            Incidents assigned to you by a department manager will appear here for root cause analysis.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6 pb-6">
-      {/* ── Header Banner ──────────────────────────────────────────────────── */}
-      <section
-        className="overflow-hidden rounded-2xl"
-        style={{
-          background: `linear-gradient(135deg, ${NAVY} 0%, #192651 60%, ${COBALT} 100%)`,
-          boxShadow: '0 4px 24px rgba(30,43,94,0.18)',
-        }}
-      >
-        <div className="flex flex-col gap-5 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <span
-              className="inline-flex rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90"
-              style={{ backgroundColor: 'rgba(255,255,255,0.14)' }}
-            >
-              Investigator Workspace
-            </span>
-            <h1 className="mt-3 text-2xl font-bold text-white sm:text-3xl">Assigned Incidents</h1>
-            <p className="mt-1.5 max-w-xl text-sm" style={{ color: 'rgba(255,255,255,0.75)' }}>
-              Review and resolve the incidents currently assigned to you.
-            </p>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: 'Total',  value: stats.count },
-              { label: 'Active', value: stats.activeCount },
-              { label: 'Review', value: stats.reviewCount },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className="rounded-xl px-4 py-3"
-                style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
-              >
-                <p className="text-[11px] uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                  {s.label}
-                </p>
-                <p className="mt-1 text-2xl font-bold text-white">{s.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Incident Queue ─────────────────────────────────────────────────── */}
-      <section
-        className="rounded-2xl p-6"
-        style={{ backgroundColor: SURFACE, border: `1.5px solid ${BORDER}`, boxShadow: '0 2px 8px rgba(30,43,94,0.06)' }}
-      >
-        <div className="mb-5">
-          <h2 className="text-lg font-bold" style={{ color: TEXT }}>Incident Queue</h2>
-          <p className="text-sm mt-0.5" style={{ color: MUTED }}>
-            Click any incident to view the full investigation details.
-          </p>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {incidents.map((incident) => (
-            <IncidentCard
-              key={incident.id}
-              incident={incident}
-              onClick={() => handleIncidentClick(incident)}
-            />
-          ))}
-        </div>
-      </section>
-    </div>
-  );
+const PURPLE='#7C3AED', DARK='#3B1B78', BORDER='#DDD6FE', TEXT='#1A2447', MUTED='#6B7494';
+const InvestigatorDashboard=()=>{
+  const navigate=useNavigate(); const [search,setSearch]=useState(''); const [status,setStatus]=useState(''); const [severity,setSeverity]=useState(''); const [due,setDue]=useState('');
+  const params=Object.fromEntries(Object.entries({search,status,severity,due}).filter(([,v])=>v));
+  const {data,isLoading,isError}=useQuery({queryKey:['investigation-dashboard',params],queryFn:()=>investigationApi.dashboard(params)});
+  if(isLoading)return <div className="h-80 grid place-items-center font-bold" style={{color:PURPLE}}>Loading assigned investigations…</div>;
+  return <div className="space-y-6 pb-6">
+    <header className="rounded-2xl p-7 text-white flex flex-col lg:flex-row lg:items-end justify-between gap-5" style={{background:`linear-gradient(135deg,${DARK},${PURPLE})`,boxShadow:'0 6px 26px rgba(124,58,237,.2)'}}><div><div className="text-xs uppercase tracking-[.2em] font-bold opacity-75">Assignment-scoped workspace</div><h1 className="text-3xl font-extrabold mt-2">Investigator Dashboard</h1><p className="mt-1 opacity-80">Prioritize assigned cases, preserve drafts, and submit structured evidence for Manager review.</p></div><div className="grid grid-cols-5 gap-2">{[['Total',data?.summary.total],['Drafts',data?.summary.drafts],['Revision',data?.summary.revision],['Submitted',data?.summary.submitted],['Overdue',data?.summary.overdue]].map(([k,v])=><div key={k} className="rounded-xl px-3 py-2 bg-white/15 text-center"><div className="text-xl font-extrabold">{v??0}</div><div className="text-[10px] uppercase font-bold opacity-70">{k}</div></div>)}</div></header>
+    <section className="rounded-2xl bg-white p-5 grid md:grid-cols-2 xl:grid-cols-4 gap-3" style={{border:`1.5px solid ${BORDER}`}}><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search title, category or location…" className="px-4 py-3 rounded-xl border border-violet-200 outline-violet-600"/><select value={status} onChange={e=>setStatus(e.target.value)} className="px-3 py-3 rounded-xl border border-violet-200"><option value="">All investigation states</option>{['DRAFT','REVISION_REQUESTED','SUBMITTED','APPROVED'].map(v=><option key={v}>{v}</option>)}</select><select value={severity} onChange={e=>setSeverity(e.target.value)} className="px-3 py-3 rounded-xl border border-violet-200"><option value="">All severities</option>{['LOW','MEDIUM','HIGH','CRITICAL'].map(v=><option key={v}>{v}</option>)}</select><select value={due} onChange={e=>setDue(e.target.value)} className="px-3 py-3 rounded-xl border border-violet-200"><option value="">All due dates</option><option value="OVERDUE">Overdue</option><option value="NEXT_7_DAYS">Next 7 days</option><option value="NO_DATE">No target date</option></select></section>
+    <section className="rounded-2xl bg-white overflow-hidden" style={{border:`1.5px solid ${BORDER}`}}><div className="p-5 border-b border-violet-100"><h2 className="text-lg font-extrabold" style={{color:TEXT}}>Assigned Investigation Queue</h2><p className="text-sm" style={{color:MUTED}}>Only incidents assigned to your account are returned by this API.</p></div>{isError?<div className="p-12 text-center text-red-600">Unable to load assigned investigations.</div>:!data?.items.length?<div className="p-16 text-center text-slate-500">No assigned cases match these filters.</div>:<div className="divide-y divide-violet-100">{data.items.map(item=><button key={item.id} onClick={()=>navigate(`/investigator/${item.incidentId}`)} className="w-full text-left p-5 hover:bg-violet-50 grid md:grid-cols-[1fr_auto] gap-4"><div><div className="flex flex-wrap items-center gap-2"><b className="text-base" style={{color:TEXT}}>#{item.incidentId} {item.incident.title}</b><span className="px-2 py-1 rounded-md text-xs font-bold text-violet-700 bg-violet-100">{item.status.replaceAll('_',' ')}</span>{item.overdue&&<span className="px-2 py-1 rounded-md text-xs font-bold text-red-700 bg-red-100">OVERDUE</span>}</div><p className="text-sm mt-2" style={{color:MUTED}}>{item.incident.category} • {item.incident.location} • {item.incident.department?.name}</p><div className="flex flex-wrap gap-3 mt-3 text-xs text-slate-500"><span>Team {item._count.teamMembers}</span><span>Factors {item._count.contributingFactors}</span><span>Evidence {item._count.evidence}</span><span>Timeline {item._count.timeline}</span><span>Revision {item.revisionNumber}</span></div></div><div className="md:text-right"><div className="font-extrabold" style={{color:item.incident.severity==='CRITICAL'?'#DC2626':PURPLE}}>{item.incident.severity}</div><div className="text-xs mt-1 text-slate-500">Target: {item.endDate?new Date(item.endDate).toLocaleDateString():'Not set'}</div></div></button>)}</div>}</section>
+  </div>;
 };
-
 export default InvestigatorDashboard;

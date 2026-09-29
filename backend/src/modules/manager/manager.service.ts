@@ -185,9 +185,18 @@ export class ManagerService {
     const incident = await this.incidentForManager(id, actor);
     if (!incident.rootCause || !incident.rootCauseCategory) throw new AppError('Root-cause findings must be submitted first.', 409);
     const approved = input.outcome === 'APPROVE';
-    const updated = await prisma.incident.update({
-      where: { id },
-      data: { investigationReviewStatus: approved ? 'APPROVED' : 'REVISION_REQUESTED', investigationReviewComment: input.comment, status: approved ? 'PENDING_ACTION' : 'INVESTIGATING' },
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.incident.update({
+        where: { id },
+        data: { investigationReviewStatus: approved ? 'APPROVED' : 'REVISION_REQUESTED', investigationReviewComment: input.comment, status: approved ? 'PENDING_ACTION' : 'INVESTIGATING' },
+      });
+      await tx.investigation.updateMany({
+        where: { incidentId: id },
+        data: approved
+          ? { status: 'APPROVED', approvedAt: new Date(), lockedAt: new Date() }
+          : { status: 'REVISION_REQUESTED', lockedAt: null, revisionNumber: { increment: 1 } },
+      });
+      return result;
     });
     await this.audit(actor, approved ? 'APPROVE_INVESTIGATION' : 'RETURN_INVESTIGATION', id, incident, updated, { comment: input.comment });
     return updated;

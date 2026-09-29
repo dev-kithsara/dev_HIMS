@@ -1,254 +1,49 @@
-import React, { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import type { Incident } from "../types/incident";
-import { apiClient } from "../api/axios";
-import toast from "react-hot-toast";
+import React, { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { investigationApi, type InvestigationMethod } from '../api/investigation.api';
 
-// ── Color Tokens ──────────────────────────────────────────────────────────
-const NAVY    = '#1E2B5E';
-const COBALT  = '#1B367A';
-const ROYAL   = '#2952C4';
-const SURFACE = '#F7F8FA';
-const BG_PAGE = '#EDEEF3';
-const BORDER  = '#D8DCE8';
-const TEXT    = '#1A2447';
-const MUTED   = '#6B7494';
-const FAINT   = '#9BA4BC';
-const GREEN   = '#16A34A';
-const AMBER   = '#D97706';
+const PURPLE='#7C3AED', DARK='#3B1B78', BORDER='#DDD6FE', TEXT='#1A2447', MUTED='#6B7494';
+const field='w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm outline-violet-600';
+const methods:InvestigationMethod[]=['FIVE_WHYS','FISHBONE','FAULT_TREE','TIMELINE_ANALYSIS','OTHER'];
+const Panel=({title,subtitle,children}:{title:string;subtitle?:string;children:React.ReactNode})=><section className="rounded-2xl bg-white p-5" style={{border:`1.5px solid ${BORDER}`}}><h2 className="text-lg font-extrabold" style={{color:TEXT}}>{title}</h2>{subtitle&&<p className="text-xs mt-1 mb-4" style={{color:MUTED}}>{subtitle}</p>}{children}</section>;
+const Btn=({children,onClick,disabled=false,tone='purple'}:{children:React.ReactNode;onClick:()=>void;disabled?:boolean;tone?:'purple'|'green'|'red'})=><button type="button" disabled={disabled} onClick={onClick} className="rounded-xl px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40" style={{background:tone==='green'?'#15803D':tone==='red'?'#DC2626':PURPLE}}>{children}</button>;
 
-const ROOT_CAUSE_CATEGORIES = [
-  'Human Error',
-  'Equipment Failure',
-  'Process Gap',
-  'Communication Failure',
-];
-
-const InvestigatorWorkspace: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const incident = location.state?.incident as Incident | undefined;
-
-  const [rootCauseCategory, setRootCauseCategory] = useState("");
-  const [rootCause, setRootCause] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleRootCauseSubmit = async () => {
-    if (rootCause.length < 20) {
-      toast.error("Root cause findings must be at least 20 characters");
-      return;
-    }
-    if (!rootCauseCategory) {
-      toast.error("Please select a root cause category");
-      return;
-    }
-    try {
-      setLoading(true);
-      await apiClient.patch(`/incidents/${incident!.id}/root-cause`, {
-        rootCause,
-        rootCauseCategory,
-      });
-      toast.success("Root Cause submitted successfully");
-      setRootCause("");
-      setRootCauseCategory("");
-      navigate("/investigator");
-    } catch {
-      toast.error("Validation failed or could not submit root cause.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!incident) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h2 className="text-xl font-bold mb-4" style={{ color: TEXT }}>Incident not found</h2>
-          <button
-            onClick={() => navigate("/investigator")}
-            className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white cursor-pointer"
-            style={{ backgroundColor: NAVY }}
-          >
-            Back to Dashboard
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const inputStyle = {
-    backgroundColor: '#FFFFFF',
-    border: `1.5px solid ${BORDER}`,
-    color: TEXT,
-    borderRadius: '12px',
-    padding: '10px 14px',
-    width: '100%',
-    outline: 'none',
-    fontSize: '14px',
-    transition: 'all 0.15s',
-  } as React.CSSProperties;
-
-  return (
-    <div className="space-y-6 pb-6">
-      {/* Back */}
-      <button
-        onClick={() => navigate("/investigator")}
-        className="text-sm font-semibold hover:underline flex items-center gap-1.5 cursor-pointer"
-        style={{ color: ROYAL }}
-      >
-        &larr; Back to Dashboard
-      </button>
-
-      {/* Page Title */}
-      <div
-        className="rounded-2xl p-6"
-        style={{
-          background: `linear-gradient(135deg, ${NAVY} 0%, #192651 60%, ${COBALT} 100%)`,
-          boxShadow: '0 4px 24px rgba(30,43,94,0.18)',
-        }}
-      >
-        <h1 className="text-2xl font-bold text-white">Investigator Workspace</h1>
-        <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
-          Review the incident details and submit your Root Cause Analysis.
-        </p>
-      </div>
-
-      {/* Incident Information */}
-      <div
-        className="rounded-2xl p-6"
-        style={{ backgroundColor: SURFACE, border: `1.5px solid ${BORDER}`, boxShadow: '0 1px 6px rgba(30,43,94,0.06)' }}
-      >
-        <h2 className="text-base font-bold mb-5" style={{ color: TEXT }}>Incident Information</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {[
-            { label: 'Title',    value: incident.title },
-            { label: 'Status',   value: incident.status },
-            { label: 'Severity', value: incident.severity },
-            { label: 'Category', value: incident.category },
-            { label: 'Location', value: incident.location },
-            { label: 'Created',  value: new Date(incident.createdAt).toLocaleDateString() },
-          ].map(({ label, value }) => (
-            <div key={label} className="p-4 rounded-xl" style={{ backgroundColor: BG_PAGE, border: `1px solid ${BORDER}` }}>
-              <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: FAINT }}>{label}</p>
-              <p className="text-sm font-semibold" style={{ color: TEXT }}>{value}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 p-4 rounded-xl" style={{ backgroundColor: BG_PAGE, border: `1px solid ${BORDER}` }}>
-          <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: FAINT }}>Description</p>
-          <p className="text-sm leading-relaxed" style={{ color: MUTED }}>{incident.description}</p>
-        </div>
-      </div>
-
-      {/* Reporter Information */}
-      <div
-        className="rounded-2xl p-6"
-        style={{ backgroundColor: SURFACE, border: `1.5px solid ${BORDER}`, boxShadow: '0 1px 6px rgba(30,43,94,0.06)' }}
-      >
-        <h2 className="text-base font-bold mb-5" style={{ color: TEXT }}>Reporter Information</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="p-4 rounded-xl" style={{ backgroundColor: '#EBF0FA', border: '1px solid #C0CBE0' }}>
-            <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: ROYAL }}>Reporter</p>
-            <p className="text-sm font-semibold" style={{ color: TEXT }}>{incident.reporter?.name ?? "Unknown"}</p>
-          </div>
-          <div className="p-4 rounded-xl" style={{ backgroundColor: '#EBF0FA', border: '1px solid #C0CBE0' }}>
-            <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: ROYAL }}>Department</p>
-            <p className="text-sm font-semibold" style={{ color: TEXT }}>{incident.department?.name ?? "N/A"}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Evidence Attachments */}
-      <div
-        className="rounded-2xl p-6"
-        style={{ backgroundColor: SURFACE, border: `1.5px solid ${BORDER}`, boxShadow: '0 1px 6px rgba(30,43,94,0.06)' }}
-      >
-        <h2 className="text-base font-bold mb-4" style={{ color: TEXT }}>Evidence Attachments</h2>
-        {incident.attachments && incident.attachments.length > 0 ? (
-          <div className="space-y-2">
-            {incident.attachments.map((file) => (
-              <div
-                key={file.id}
-                className="flex items-center justify-between rounded-xl p-3"
-                style={{ backgroundColor: BG_PAGE, border: `1px solid ${BORDER}` }}
-              >
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: TEXT }}>{file.fileName}</p>
-                  <p className="text-xs mt-0.5" style={{ color: FAINT }}>{file.fileType}</p>
-                </div>
-                <a
-                  href={`/${file.filePath}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl px-4 py-1.5 text-xs font-semibold text-white"
-                  style={{ backgroundColor: ROYAL }}
-                >
-                  View
-                </a>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm" style={{ color: FAINT }}>No evidence uploaded.</p>
-        )}
-      </div>
-
-      {/* Root Cause Analysis */}
-      <div
-        className="rounded-2xl p-6"
-        style={{ backgroundColor: SURFACE, border: `1.5px solid ${BORDER}`, boxShadow: '0 1px 6px rgba(30,43,94,0.06)' }}
-      >
-        <h2 className="text-base font-bold mb-5" style={{ color: TEXT }}>Root Cause Analysis</h2>
-
-        <div className="mb-5">
-          <label htmlFor="root-cause-category-select" className="block text-sm font-semibold mb-2" style={{ color: TEXT }}>
-            Root Cause Category
-          </label>
-          <select
-            id="root-cause-category-select"
-            value={rootCauseCategory}
-            onChange={(e) => setRootCauseCategory(e.target.value)}
-            style={inputStyle}
-          >
-            <option value="">Select Category</option>
-            {ROOT_CAUSE_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="mb-5">
-          <label htmlFor="root-cause-findings-textarea" className="block text-sm font-semibold mb-2" style={{ color: TEXT }}>
-            Detailed Findings
-          </label>
-          <textarea
-            id="root-cause-findings-textarea"
-            value={rootCause}
-            onChange={(e) => setRootCause(e.target.value)}
-            rows={5}
-            placeholder="Describe the root cause findings..."
-            style={{ ...inputStyle, resize: 'none' }}
-          />
-          <p className="mt-1.5 text-xs font-medium" style={{ color: rootCause.length < 20 ? AMBER : GREEN }}>
-            {rootCause.length}/20 minimum characters
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleRootCauseSubmit}
-          disabled={loading}
-          className="rounded-xl px-6 py-3 text-sm font-bold text-white transition-all disabled:opacity-50 cursor-pointer"
-          style={{ backgroundColor: NAVY, boxShadow: '0 2px 8px rgba(30,43,94,0.22)' }}
-        >
-          {loading ? "Submitting..." : "Submit Findings"}
-        </button>
-      </div>
-    </div>
-  );
+const InvestigatorWorkspace:React.FC=()=>{
+  const id=Number(useParams().id); const nav=useNavigate(); const qc=useQueryClient();
+  const {data:record,isLoading}=useQuery({queryKey:['investigation-workspace',id],queryFn:()=>investigationApi.workspace(id),enabled:Number.isInteger(id)});
+  const {data:candidates=[]}=useQuery({queryKey:['investigation-candidates',id],queryFn:()=>investigationApi.candidates(id),enabled:!!record});
+  const {data:ai}=useQuery({queryKey:['investigation-ai',id],queryFn:()=>investigationApi.aiInsights(id),enabled:!!record});
+  const [draft,setDraft]=useState({startDate:'',endDate:'',method:'' as InvestigationMethod|'',methodOther:'',findingsSummary:'',rootCauseCategory:'',rootCauseSubcategory:'',rootCauseDescription:'',rootCauseMethod:'' as InvestigationMethod|'',rootCauseDetail:'',systemicIssue:false});
+  const [factors,setFactors]=useState<Array<{category:string;description:string}>>([]); const [factor,setFactor]=useState({category:'',description:''});
+  const [team,setTeam]=useState({userId:'',role:'TEAM_MEMBER'}); const [witness,setWitness]=useState({name:'',roleOrContact:'',statement:'',interviewedAt:''});
+  const [timeline,setTimeline]=useState({occurredAt:'',title:'',description:'',source:''}); const [evidence,setEvidence]=useState({attachmentId:'',label:'',reference:'',notes:''}); const [link,setLink]=useState({targetIncidentId:'',reason:''});
+  useEffect(()=>{if(record){setDraft({startDate:record.startDate?.slice(0,10)??'',endDate:record.endDate?.slice(0,10)??'',method:record.method??'',methodOther:record.methodOther??'',findingsSummary:record.findingsSummary??'',rootCauseCategory:record.rootCauseCategory??'',rootCauseSubcategory:record.rootCauseSubcategory??'',rootCauseDescription:record.rootCauseDescription??'',rootCauseMethod:record.rootCauseMethod??'',rootCauseDetail:record.rootCauseDetail??'',systemicIssue:record.systemicIssue});setFactors(record.contributingFactors.map(x=>({category:x.category,description:x.description}))) }},[record]);
+  const mutation=useMutation({mutationFn:(fn:()=>Promise<unknown>)=>fn(),onSuccess:async()=>{toast.success('Saved and audited');await Promise.all([qc.invalidateQueries({queryKey:['investigation-workspace',id]}),qc.invalidateQueries({queryKey:['investigation-dashboard']}),qc.invalidateQueries({queryKey:['investigation-ai',id]})])}}); const run=(fn:()=>Promise<unknown>)=>mutation.mutate(fn);
+  if(isLoading)return <div className="h-80 grid place-items-center font-bold text-violet-700">Loading secure investigation workspace…</div>;
+  if(!record)return <div className="p-8 text-center text-red-600">Investigation not found or not assigned to you.</div>;
+  const locked=['SUBMITTED','APPROVED'].includes(record.status); const incident:any=record.incident;
+  const save=()=>run(()=>investigationApi.saveDraft(id,{...draft,startDate:draft.startDate||null,endDate:draft.endDate||null,method:draft.method||null,rootCauseMethod:draft.rootCauseMethod||null,contributingFactors:factors}));
+  const feedback=(feature:string,resultKey:string,action:'ACCEPTED'|'DISMISSED'|'OVERRIDDEN',reason?:string)=>run(()=>investigationApi.feedback(id,{feature,resultKey,action,reason,modelVersion:ai?.modelVersion??'investigator-rules-v1.0'}));
+  return <div className="space-y-6 pb-6">
+    <button onClick={()=>nav('/')} className="text-sm font-bold text-violet-700">← Back to assigned queue</button>
+    <header className="rounded-2xl p-6 text-white" style={{background:`linear-gradient(135deg,${DARK},${PURPLE})`}}><div className="flex flex-wrap justify-between gap-4"><div><div className="text-xs uppercase tracking-[.2em] font-bold opacity-70">Investigation #{record.id} • Incident #{id}</div><h1 className="text-3xl font-extrabold mt-2">{incident.title}</h1><p className="mt-2 opacity-80">{incident.description}</p></div><div className="text-right"><span className="rounded-full bg-white/15 px-3 py-1 text-sm font-bold">{record.status.replaceAll('_',' ')}</span><div className="text-xs mt-2">Revision {record.revisionNumber} • {incident.severity}</div></div></div></header>
+    {record.status==='REVISION_REQUESTED'&&<div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900"><b>Manager returned this investigation for revision.</b><p className="text-sm mt-1">{incident.investigationReviewComment||'Review the findings and resubmit.'}</p></div>}
+    {locked&&<div className="rounded-xl border border-violet-300 bg-violet-50 p-4 text-violet-900"><b>{record.status==='APPROVED'?'Approved findings are locked.':'Submitted for Manager review.'}</b> Draft controls are read-only until a revision is requested.</div>}
+    <div className="grid md:grid-cols-3 gap-4">{[['Reporter',incident.reporter?.name],['Department',incident.department?.name],['Location',incident.location]].map(([k,v])=><div key={k} className="rounded-xl bg-white p-4" style={{border:`1px solid ${BORDER}`}}><div className="text-xs uppercase font-bold" style={{color:MUTED}}>{k}</div><b>{v}</b></div>)}</div>
+    <Panel title="Investigation Plan & Draft" subtitle="Save incomplete work without advancing incident state"><div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3"><div><label className="text-xs font-bold">Start date</label><input disabled={locked} type="date" className={field} value={draft.startDate} onChange={e=>setDraft({...draft,startDate:e.target.value})}/></div><div><label className="text-xs font-bold">Target/end date</label><input disabled={locked} type="date" className={field} value={draft.endDate} onChange={e=>setDraft({...draft,endDate:e.target.value})}/></div><div><label className="text-xs font-bold">Investigation method</label><select disabled={locked} className={field} value={draft.method} onChange={e=>setDraft({...draft,method:e.target.value as InvestigationMethod})}><option value="">Select method</option>{methods.map(v=><option key={v}>{v}</option>)}</select></div><div><label className="text-xs font-bold">Other method</label><input disabled={locked} className={field} value={draft.methodOther} onChange={e=>setDraft({...draft,methodOther:e.target.value})}/></div><textarea disabled={locked} className={`${field} md:col-span-2 xl:col-span-4 min-h-28`} placeholder="Structured findings summary" value={draft.findingsSummary} onChange={e=>setDraft({...draft,findingsSummary:e.target.value})}/></div><div className="mt-3"><Btn disabled={locked} onClick={save}>Save draft</Btn></div></Panel>
+    <div className="grid xl:grid-cols-2 gap-6"><Panel title="Contributing Factors" subtitle="Record multiple validated factors for clustering and prediction"><div className="flex gap-2"><input disabled={locked} className={field} placeholder="Category" value={factor.category} onChange={e=>setFactor({...factor,category:e.target.value})}/><input disabled={locked} className={field} placeholder="Description" value={factor.description} onChange={e=>setFactor({...factor,description:e.target.value})}/><Btn disabled={locked||!factor.category||!factor.description} onClick={()=>{setFactors([...factors,factor]);setFactor({category:'',description:''})}}>Add</Btn></div><div className="space-y-2 mt-4">{factors.map((x,i)=><div key={`${x.category}-${i}`} className="p-3 rounded-xl bg-violet-50 flex justify-between"><span><b>{x.category}</b> — {x.description}</span>{!locked&&<button onClick={()=>setFactors(factors.filter((_,j)=>j!==i))} className="text-red-600">Remove</button>}</div>)}</div></Panel>
+      <Panel title="Investigation Team" subtitle="Eligible active colleagues from the same department"><div className="flex gap-2"><select disabled={locked} className={field} value={team.userId} onChange={e=>setTeam({...team,userId:e.target.value})}><option value="">Select member</option>{candidates.map(u=><option key={u.id} value={u.id}>{u.name} • {u.role}</option>)}</select><input disabled={locked} className={field} value={team.role} onChange={e=>setTeam({...team,role:e.target.value})}/><Btn disabled={locked||!team.userId} onClick={()=>run(()=>investigationApi.addTeam(id,{userId:Number(team.userId),role:team.role}))}>Add</Btn></div><div className="space-y-2 mt-4">{record.teamMembers.map(x=><div key={x.userId} className="p-3 rounded-xl bg-slate-50 flex justify-between"><span><b>{x.user.name}</b> • {x.role}</span>{!locked&&<button onClick={()=>run(()=>investigationApi.removeTeam(id,x.userId))} className="text-red-600">Remove</button>}</div>)}</div></Panel></div>
+    <Panel title="Complete Root Cause Analysis" subtitle="Category, sub-category, description, method and analysis detail are required for submission"><div className="grid md:grid-cols-2 gap-3"><input disabled={locked} className={field} placeholder="Root-cause category" value={draft.rootCauseCategory} onChange={e=>setDraft({...draft,rootCauseCategory:e.target.value})}/><input disabled={locked} className={field} placeholder="Root-cause sub-category" value={draft.rootCauseSubcategory} onChange={e=>setDraft({...draft,rootCauseSubcategory:e.target.value})}/><select disabled={locked} className={field} value={draft.rootCauseMethod} onChange={e=>setDraft({...draft,rootCauseMethod:e.target.value as InvestigationMethod})}><option value="">Analysis method</option>{methods.map(v=><option key={v}>{v}</option>)}</select><label className="flex items-center gap-2 rounded-xl bg-red-50 px-4"><input disabled={locked} type="checkbox" checked={draft.systemicIssue} onChange={e=>setDraft({...draft,systemicIssue:e.target.checked})}/> Flag as systemic issue</label><textarea disabled={locked} className={`${field} min-h-24 md:col-span-2`} placeholder="Root-cause description" value={draft.rootCauseDescription} onChange={e=>setDraft({...draft,rootCauseDescription:e.target.value})}/><textarea disabled={locked} className={`${field} min-h-32 md:col-span-2`} placeholder="Detailed analysis and reasoning" value={draft.rootCauseDetail} onChange={e=>setDraft({...draft,rootCauseDetail:e.target.value})}/></div><div className="mt-3"><Btn disabled={locked} onClick={save}>Save structured RCA</Btn></div></Panel>
+    <div className="grid xl:grid-cols-3 gap-6"><Panel title="Witness Records"><input disabled={locked} className={field} placeholder="Witness name" value={witness.name} onChange={e=>setWitness({...witness,name:e.target.value})}/><input disabled={locked} className={`${field} mt-2`} placeholder="Role or contact" value={witness.roleOrContact} onChange={e=>setWitness({...witness,roleOrContact:e.target.value})}/><textarea disabled={locked} className={`${field} mt-2`} placeholder="Statement/reference" value={witness.statement} onChange={e=>setWitness({...witness,statement:e.target.value})}/><input disabled={locked} type="date" className={`${field} mt-2`} value={witness.interviewedAt} onChange={e=>setWitness({...witness,interviewedAt:e.target.value})}/><div className="mt-2"><Btn disabled={locked||!witness.name} onClick={()=>run(()=>investigationApi.addWitness(id,witness))}>Add witness</Btn></div><div className="mt-4 space-y-2">{record.witnesses.map(x=><div key={x.id} className="p-3 rounded-xl bg-slate-50"><b>{x.name}</b><p className="text-xs">{x.statement}</p></div>)}</div></Panel>
+      <Panel title="Timeline of Events"><input disabled={locked} type="datetime-local" className={field} value={timeline.occurredAt} onChange={e=>setTimeline({...timeline,occurredAt:e.target.value})}/><input disabled={locked} className={`${field} mt-2`} placeholder="Event title" value={timeline.title} onChange={e=>setTimeline({...timeline,title:e.target.value})}/><textarea disabled={locked} className={`${field} mt-2`} placeholder="Chronological detail" value={timeline.description} onChange={e=>setTimeline({...timeline,description:e.target.value})}/><input disabled={locked} className={`${field} mt-2`} placeholder="Source" value={timeline.source} onChange={e=>setTimeline({...timeline,source:e.target.value})}/><div className="mt-2"><Btn disabled={locked||!timeline.occurredAt||!timeline.title} onClick={()=>run(()=>investigationApi.addTimeline(id,timeline))}>Add event</Btn></div><div className="mt-4 space-y-2">{record.timeline.map(x=><div key={x.id} className="p-3 rounded-xl bg-slate-50"><b>{new Date(x.occurredAt).toLocaleString()} • {x.title}</b><p className="text-xs">{x.description}</p></div>)}</div></Panel>
+      <Panel title="Evidence References"><select disabled={locked} className={field} value={evidence.attachmentId} onChange={e=>setEvidence({...evidence,attachmentId:e.target.value})}><option value="">External/reference evidence</option>{incident.attachments?.map((x:any)=><option key={x.id} value={x.id}>{x.fileName}</option>)}</select><input disabled={locked} className={`${field} mt-2`} placeholder="Evidence label" value={evidence.label} onChange={e=>setEvidence({...evidence,label:e.target.value})}/><input disabled={locked} className={`${field} mt-2`} placeholder="Authorized source reference" value={evidence.reference} onChange={e=>setEvidence({...evidence,reference:e.target.value})}/><textarea disabled={locked} className={`${field} mt-2`} placeholder="Evidence notes" value={evidence.notes} onChange={e=>setEvidence({...evidence,notes:e.target.value})}/><div className="mt-2"><Btn disabled={locked||!evidence.label} onClick={()=>run(()=>investigationApi.addEvidence(id,{...evidence,attachmentId:evidence.attachmentId?Number(evidence.attachmentId):undefined}))}>Add evidence</Btn></div><div className="mt-4 space-y-2">{record.evidence.map(x=><div key={x.id} className="p-3 rounded-xl bg-slate-50"><b>{x.label}</b><p className="text-xs">{x.reference||x.notes}</p></div>)}</div></Panel></div>
+    <div className="grid xl:grid-cols-2 gap-6"><Panel title="Related / Systemic Incidents" subtitle="Only other incidents assigned to you may be linked"><div className="flex gap-2"><input disabled={locked} type="number" className={field} placeholder="Target incident ID" value={link.targetIncidentId} onChange={e=>setLink({...link,targetIncidentId:e.target.value})}/><input disabled={locked} className={field} placeholder="Link reason" value={link.reason} onChange={e=>setLink({...link,reason:e.target.value})}/><Btn disabled={locked||!link.targetIncidentId||link.reason.length<10} onClick={()=>run(()=>investigationApi.linkIncident(id,{targetIncidentId:Number(link.targetIncidentId),reason:link.reason}))}>Link</Btn></div><div className="mt-4 grid grid-cols-2 gap-2">{ai?.clusters.map(x=><div key={x.name} className="p-3 rounded-xl bg-violet-50"><b>{x.name}</b><div className="text-2xl font-extrabold text-violet-700">{x.count}</div></div>)}</div></Panel>
+      <Panel title="AI Evidence & Timeline Summary" subtitle={`${ai?.modelVersion} • clearly labeled assistance`}><div className="p-3 rounded-xl bg-blue-50 text-sm">{ai?.summaries.timeline}</div><div className="p-3 rounded-xl bg-blue-50 text-sm mt-2">{ai?.summaries.evidence}</div><p className="text-xs mt-3 text-slate-500">{ai?.disclaimer}</p></Panel></div>
+    <div className="grid xl:grid-cols-2 gap-6"><Panel title="Similar Incidents" subtitle="Ranked from authorized incidents assigned to you"><div className="space-y-2">{ai?.similarIncidents.length?ai.similarIncidents.map(x=><div key={x.id} className="p-3 rounded-xl bg-violet-50"><div className="flex justify-between"><button onClick={()=>nav(`/investigator/${x.id}`)} className="font-bold text-violet-800">#{x.id} {x.title}</button><b>{(x.similarity*100).toFixed(0)}%</b></div><div className="text-xs text-slate-600">Matched: {x.matchedFields.join(', ')}</div><div className="flex gap-2 mt-2"><button onClick={()=>feedback('SIMILAR_INCIDENT',String(x.id),'ACCEPTED')} className="text-xs font-bold text-green-700">Useful</button><button onClick={()=>feedback('SIMILAR_INCIDENT',String(x.id),'DISMISSED')} className="text-xs font-bold text-red-700">Dismiss</button></div></div>):<p className="text-sm text-slate-500">No authorized similar incident found.</p>}</div></Panel>
+      <Panel title="AI Method Suggestions" subtitle="Suggestions require explicit selection or dismissal"><div className="space-y-3">{ai?.methodSuggestions.map(x=><div key={x.method} className="p-4 rounded-xl bg-violet-50"><b>{x.method.replaceAll('_',' ')}</b><p className="text-sm mt-1">{x.reason}</p><div className="flex gap-2 mt-2"><button disabled={locked} onClick={()=>{setDraft({...draft,method:x.method});feedback('METHOD',x.method,'ACCEPTED')}} className="text-xs font-bold text-green-700">Select</button><button onClick={()=>feedback('METHOD',x.method,'DISMISSED')} className="text-xs font-bold text-red-700">Dismiss</button></div></div>)}</div></Panel></div>
+    <Panel title="Submit for Manager Review" subtitle="Submission validates all required fields and locks findings until approval or revision request"><div className="flex flex-wrap gap-3"><Btn disabled={locked} onClick={save}>Save final draft</Btn><Btn tone="green" disabled={locked||mutation.isPending} onClick={()=>run(()=>investigationApi.submit(id))}>{record.status==='REVISION_REQUESTED'?'Resubmit revised findings':'Submit investigation'}</Btn></div></Panel>
+  </div>;
 };
-
 export default InvestigatorWorkspace;

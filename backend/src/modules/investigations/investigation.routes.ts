@@ -1,10 +1,19 @@
 import { Router } from 'express';
 import { authenticate, authorizeRoles } from '../../middlewares/auth.middleware';
-import { getAssignedIncidents, submitRootCause } from './investigation.controller';
-
+import { addEvidence, addTeamMember, addTimeline, addWitness, getAiInsights, getCandidates, getDashboard, getWorkspace, linkIncident, recordAiFeedback, removeTeamMember, saveDraft, submitInvestigation } from './investigation.controller';
 const router = Router();
-
-router.get('/investigator', authenticate, authorizeRoles('INVESTIGATOR'), getAssignedIncidents);
-router.patch('/:id/root-cause', authenticate, authorizeRoles('INVESTIGATOR'), submitRootCause);
-
+router.use(authenticate, authorizeRoles('INVESTIGATOR'));
+router.get('/dashboard', getDashboard);
+router.get('/:id/candidates', getCandidates);
+router.get('/:id/ai-insights', getAiInsights);
+router.post('/:id/ai-feedback', recordAiFeedback);
+router.get('/:id', getWorkspace);
+router.put('/:id/draft', saveDraft);
+router.post('/:id/team', addTeamMember);
+router.delete('/:id/team/:userId', removeTeamMember);
+router.post('/:id/witnesses', addWitness);
+router.post('/:id/timeline', addTimeline);
+router.post('/:id/evidence', addEvidence);
+router.post('/:id/links', linkIncident);
+router.post('/:id/submit', submitInvestigation);
 export default router;

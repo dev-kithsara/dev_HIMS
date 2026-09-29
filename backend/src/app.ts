@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { incidentRoutes } from './modules/incidents';
-import { investigationRoutes } from './modules/investigations';
+import { investigationLegacyRoutes, investigationRoutes } from './modules/investigations';
 import { correctiveActionRoutes } from './modules/corrective-actions';
 import { authRoutes } from './modules/auth';
 import { analyticsRoutes } from './modules/analytics';
@@ -37,8 +37,9 @@ Routes
 */
 
 // Route mounting
-app.use('/api/incidents', investigationRoutes);
-app.use('/api/v1/incidents', investigationRoutes);
+app.use('/api/incidents', investigationLegacyRoutes);
+app.use('/api/v1/incidents', investigationLegacyRoutes);
+app.use('/api/investigations', investigationRoutes);
 app.use('/api/incidents', correctiveActionRoutes);
 app.use('/api/v1/incidents', correctiveActionRoutes);
 app.use('/api/incidents', incidentRoutes);

@@ -1,40 +1,25 @@
 import { Request, Response } from 'express';
+import { Role } from '@prisma/client';
 import { AppError } from '../../utils/AppError';
 import { catchAsync } from '../../utils/catchAsync';
-import { investigationService } from './investigation.service';
+import { investigationService, InvestigationActor } from './investigation.service';
 import { rootCauseSchema } from './rootCause.validator';
+import { aiFeedbackSchema, dashboardQuerySchema, draftSchema, evidenceSchema, idSchema, linkSchema, teamSchema, timelineSchema, witnessSchema } from './investigation.validator';
 
-export const getAssignedIncidents = catchAsync(async (req: Request, res: Response) => {
-  if (!req.user) {
-    throw new AppError('User not authenticated.', 401);
-  }
-
-  const incidents = await investigationService.getAssignedIncidents(req.user.id);
-
-  return res.status(200).json({
-    success: true,
-    data: incidents,
-  });
-});
-
-export const submitRootCause = catchAsync(async (req: Request, res: Response) => {
-  const validatedData = rootCauseSchema.parse(req.body);
-  const incidentId = Number(req.params.id);
-
-  if (isNaN(incidentId)) {
-    throw new AppError('Invalid incident ID provided.', 400);
-  }
-
-  const updatedIncident = await investigationService.submitRootCause(
-    incidentId,
-    validatedData.rootCause,
-    validatedData.rootCauseCategory,
-    req.user!
-  );
-
-  return res.status(200).json({
-    success: true,
-    message: 'Root cause submitted successfully',
-    data: updatedIncident,
-  });
-});
+const actorFrom = (req: Request): InvestigationActor => ({ id: req.user!.id, role: req.user!.role as Role, departmentId: req.user!.departmentId, ipAddress: req.ip });
+const queryFrom = (req: Request) => Object.fromEntries(Object.entries(req.query).map(([key,value]) => [key, Array.isArray(value) ? String(value[0]) : String(value ?? '')]));
+export const getAssignedIncidents = catchAsync(async (req: Request, res: Response) => { if (!req.user) throw new AppError('User not authenticated.', 401); res.json({ success: true, data: await investigationService.getAssignedIncidents(req.user.id) }); });
+export const getDashboard = catchAsync(async (req: Request, res: Response) => res.json({ success: true, data: await investigationService.dashboard(actorFrom(req), dashboardQuerySchema.parse(queryFrom(req))) }));
+export const getWorkspace = catchAsync(async (req: Request, res: Response) => res.json({ success: true, data: await investigationService.workspace(idSchema.parse(req.params.id), actorFrom(req)) }));
+export const getCandidates = catchAsync(async (req: Request, res: Response) => res.json({ success: true, data: await investigationService.candidates(idSchema.parse(req.params.id), actorFrom(req)) }));
+export const saveDraft = catchAsync(async (req: Request, res: Response) => res.json({ success: true, message: 'Investigation draft saved without advancing workflow.', data: await investigationService.saveDraft(idSchema.parse(req.params.id), draftSchema.parse(req.body), actorFrom(req)) }));
+export const addTeamMember = catchAsync(async (req: Request, res: Response) => res.status(201).json({ success: true, message: 'Team member added.', data: await investigationService.addTeamMember(idSchema.parse(req.params.id), teamSchema.parse(req.body), actorFrom(req)) }));
+export const removeTeamMember = catchAsync(async (req: Request, res: Response) => { await investigationService.removeTeamMember(idSchema.parse(req.params.id), idSchema.parse(req.params.userId), actorFrom(req)); res.json({ success: true, message: 'Team member removed.' }); });
+export const addWitness = catchAsync(async (req: Request, res: Response) => res.status(201).json({ success: true, data: await investigationService.addWitness(idSchema.parse(req.params.id), witnessSchema.parse(req.body), actorFrom(req)) }));
+export const addTimeline = catchAsync(async (req: Request, res: Response) => res.status(201).json({ success: true, data: await investigationService.addTimeline(idSchema.parse(req.params.id), timelineSchema.parse(req.body), actorFrom(req)) }));
+export const addEvidence = catchAsync(async (req: Request, res: Response) => res.status(201).json({ success: true, data: await investigationService.addEvidence(idSchema.parse(req.params.id), evidenceSchema.parse(req.body), actorFrom(req)) }));
+export const linkIncident = catchAsync(async (req: Request, res: Response) => res.status(201).json({ success: true, data: await investigationService.linkIncident(idSchema.parse(req.params.id), linkSchema.parse(req.body), actorFrom(req)) }));
+export const submitInvestigation = catchAsync(async (req: Request, res: Response) => res.json({ success: true, message: 'Investigation submitted for Manager review.', data: await investigationService.submit(idSchema.parse(req.params.id), actorFrom(req)) }));
+export const getAiInsights = catchAsync(async (req: Request, res: Response) => res.json({ success: true, data: await investigationService.aiInsights(idSchema.parse(req.params.id), actorFrom(req)) }));
+export const recordAiFeedback = catchAsync(async (req: Request, res: Response) => res.status(201).json({ success: true, data: await investigationService.recordAiFeedback(idSchema.parse(req.params.id), aiFeedbackSchema.parse(req.body), actorFrom(req)) }));
+export const submitRootCause = catchAsync(async (req: Request, res: Response) => { const input = rootCauseSchema.parse(req.body); const data = await investigationService.submitRootCause(idSchema.parse(req.params.id), input.rootCause, input.rootCauseCategory, actorFrom(req)); res.json({ success: true, message: 'Root cause submitted successfully', data }); });
