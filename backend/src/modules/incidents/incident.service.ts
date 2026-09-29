@@ -264,9 +264,13 @@ export class IncidentService {
       throw new AppError('The specified investigator does not exist.', 404);
     }
 
-    if (investigator.role !== 'INVESTIGATOR' && investigator.role !== 'MANAGER') {
+    if (
+      investigator.role !== 'INVESTIGATOR' ||
+      !investigator.isActive ||
+      investigator.departmentId !== incident.departmentId
+    ) {
       throw new AppError(
-        'The specified user does not have the required role to be an investigator.',
+        'The investigator must be active and belong to the incident department.',
         403
       );
     }
@@ -290,9 +294,9 @@ export class IncidentService {
 
     this.assertCanManageIncident(incident, actor);
 
-    if (incident.status !== 'INVESTIGATING') {
+    if (incident.status !== 'PENDING_ACTION' || incident.investigationReviewStatus !== 'APPROVED') {
       throw new AppError(
-        `Cannot assign action owner. Current status is ${incident.status}, but expected INVESTIGATING.`,
+        'Action Owners can only be assigned after the root-cause investigation is approved.',
         409
       );
     }
@@ -305,9 +309,13 @@ export class IncidentService {
       throw new AppError('The specified action owner does not exist.', 404);
     }
 
-    if (actionOwner.role !== 'ACTION_OWNER' && actionOwner.role !== 'MANAGER') {
+    if (
+      actionOwner.role !== 'ACTION_OWNER' ||
+      !actionOwner.isActive ||
+      actionOwner.departmentId !== incident.departmentId
+    ) {
       throw new AppError(
-        'The specified user does not have the required role to be an action owner.',
+        'The Action Owner must be active and belong to the incident department.',
         403
       );
     }
@@ -356,6 +364,21 @@ export class IncidentService {
         `Cannot close incident. Current status is ${incident.status}, but expected UNDER_REVIEW.`,
         409
       );
+    }
+
+    const [actions, controls, review] = await Promise.all([
+      prisma.correctiveActionItem.findMany({ where: { incidentId } }),
+      prisma.controlAssessment.findMany({ where: { incidentId } }),
+      prisma.managementReview.findFirst({ where: { incidentId }, orderBy: { reviewedAt: 'desc' } }),
+    ]);
+    if (actions.length === 0 || actions.some((item) => !['COMPLETED', 'CANCELLED'].includes(item.status))) {
+      throw new AppError('All corrective and preventive actions must be completed before closure.', 409);
+    }
+    if (controls.length === 0 || controls.some((item) => item.status !== 'VERIFIED')) {
+      throw new AppError('Verified control assessments are required before closure.', 409);
+    }
+    if (review?.outcome !== 'APPROVED') {
+      throw new AppError('An approved management review is required before closure.', 409);
     }
 
     const updated = await incidentRepository.closeIncident(incidentId);

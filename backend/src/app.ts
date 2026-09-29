@@ -9,6 +9,7 @@ import { userRoutes } from './modules/users';
 import { globalErrorHandler } from './middlewares/errorHandler.middleware'; // Import the handler
 import { departmentRoutes } from './modules/departments';
 import { adminRoutes } from './modules/admin';
+import { managerRoutes } from './modules/manager';
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/manager', managerRoutes);
 
 // Health Check Routes
 app.get('/', (req, res) => {

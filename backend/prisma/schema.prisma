@@ -51,6 +51,50 @@ enum AiModelStatus {
   ROLLED_BACK
 }
 
+enum InvestigationReviewStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+  APPROVED
+  REVISION_REQUESTED
+}
+
+enum ActionType {
+  CORRECTIVE
+  PREVENTIVE
+}
+
+enum ActionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ActionItemStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ControlEffectiveness {
+  NOT_TESTED
+  EFFECTIVE
+  PARTIALLY_EFFECTIVE
+  INEFFECTIVE
+}
+
+enum ReviewOutcome {
+  APPROVED
+  REVISION_REQUIRED
+}
+
+enum DisseminationStatus {
+  NOT_SCHEDULED
+  SCHEDULED
+  COMPLETED
+}
+
 model User {
   id            Int        @id @default(autoincrement())
   email         String     @unique
@@ -68,6 +112,9 @@ model User {
   ownedActions          Incident[]           @relation("ActionOwner")
   auditLogs             AuditLog[]           @relation("AuditActor")
   incidentCorrections   IncidentCorrection[] @relation("CorrectionActor")
+  managerActionItems    CorrectiveActionItem[] @relation("ActionItemOwner")
+  managedControls       ControlAssessment[]   @relation("ControlOwner")
+  managementReviews     ManagementReview[]    @relation("ReviewManager")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -100,6 +147,21 @@ model Incident {
 
   correctiveAction String?
 
+  managerDecisionComment    String?
+  investigationReviewStatus InvestigationReviewStatus @default(NOT_SUBMITTED)
+  investigationReviewComment String?
+  originalSeverity          Severity?
+  riskScore                 Float?
+  riskLevel                 String?
+  riskExplanation           Json?
+  riskOverride              String?
+  riskOverrideReason        String?
+  closureSummary            String?
+  closedAt                  DateTime?
+  reopenReason              String?
+  reopenedAt                DateTime?
+  reopenCount               Int       @default(0)
+
   // 3. Foreign keys and relationships
   departmentId Int
   department   Department @relation(fields: [departmentId], references: [id])
@@ -116,9 +178,83 @@ model Incident {
   // File attachments (Kasun's feature)
   attachments IncidentAttachment[]
   corrections IncidentCorrection[]
+  actionItems CorrectiveActionItem[]
+  controls    ControlAssessment[]
+  reviews     ManagementReview[]
+  lessons     LessonDissemination[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model CorrectiveActionItem {
+  id               Int              @id @default(autoincrement())
+  incidentId       Int
+  incident         Incident         @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  title            String
+  description      String
+  type             ActionType
+  priority         ActionPriority   @default(MEDIUM)
+  status           ActionItemStatus @default(OPEN)
+  ownerId          Int
+  owner            User             @relation("ActionItemOwner", fields: [ownerId], references: [id])
+  dueDate          DateTime
+  escalationReason String?
+  completedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([incidentId])
+  @@index([ownerId, status])
+  @@index([dueDate, status])
+}
+
+model ControlAssessment {
+  id              Int                  @id @default(autoincrement())
+  incidentId      Int
+  incident        Incident             @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  controlType     String
+  effectiveness   ControlEffectiveness @default(NOT_TESTED)
+  failureReason   String?
+  improvementPlan String?
+  ownerId         Int?
+  owner           User?                @relation("ControlOwner", fields: [ownerId], references: [id])
+  dueDate         DateTime?
+  status          String               @default("PLANNED")
+  verifiedAt      DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([incidentId])
+}
+
+model ManagementReview {
+  id              Int           @id @default(autoincrement())
+  incidentId      Int
+  incident        Incident      @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  reviewerId      Int
+  reviewer        User          @relation("ReviewManager", fields: [reviewerId], references: [id])
+  outcome         ReviewOutcome
+  comments        String
+  lessonsLearned  String?
+  followUpDetails String?
+  reviewedAt      DateTime      @default(now())
+
+  @@index([incidentId, reviewedAt])
+}
+
+model LessonDissemination {
+  id           Int                 @id @default(autoincrement())
+  incidentId   Int
+  incident     Incident            @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  audience     String
+  scheduledFor DateTime?
+  status       DisseminationStatus @default(NOT_SCHEDULED)
+  completedAt  DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([incidentId])
 }
 
 model IncidentAttachment {

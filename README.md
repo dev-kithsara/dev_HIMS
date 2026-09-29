@@ -52,7 +52,7 @@ The system enforces a strict **role-based access control (RBAC)** model across f
 | Feature                   | Status     | Description                                      |
 | ------------------------- | ---------- | ------------------------------------------------ |
 | Staff Incident Submission | ✅ Live    | Form with file uploads, Zod validation, JWT auth |
-| Manager Approval Workflow | ✅ Live    | Accept / Reject / Assign / Close pipeline        |
+| Department Manager Workflow | ✅ Live  | Department-scoped decisions, RCA review, CAPA, controls, closure and risk analytics |
 | Investigator Workspace    | ✅ Live    | Root Cause Analysis (RCA) submission             |
 | Action Owner Workspace    | ✅ Live    | Corrective action tracking                       |
 | Analytics Dashboard       | ✅ Live    | Severity breakdown, status distribution charts   |
@@ -145,10 +145,11 @@ backend/src/modules/
 ├── departments/         # Department access and lifecycle
 ├── incidents/           # Incident workflow and secure evidence access
 ├── investigations/      # Root-cause analysis
+├── manager/             # Department workflow, controls, reviews, risk and analytics
 └── users/               # Team and role management
 ```
 
-The application is still one deployable backend and one database, but its business capabilities are now isolated as modules. This preserves existing API behaviour while reducing coupling. See [Admin governance documentation](docs/10_ADMIN_GOVERNANCE.md) for the role matrix and acceptance checklist.
+The application is still one deployable backend and one database, but its business capabilities are now isolated as modules. This preserves existing API behaviour while reducing coupling. See [Admin governance documentation](docs/10_ADMIN_GOVERNANCE.md) and the [Department Manager workflow](docs/11_DEPARTMENT_MANAGER_WORKFLOW.md).
 
 ### Role-Based Workflow
 
@@ -161,11 +162,13 @@ The application is still one deployable backend and one database, but its busine
               ↓
 [Investigator] → Submit Root Cause Analysis
               ↓
-[Manager] → Assign Action Owner
+[Manager] → Approve / Return Investigation
+              ↓ (only after approval)
+[Manager] → Create CAPA + Assign Action Owners
               ↓
-[Action Owner] → Submit Corrective Action
+[Action Owner] → Complete Assigned Actions
               ↓
-[Manager] → Review → Close ✅
+[Manager] → Verify Controls → Management Review → Close ✅
 ```
 
 ---

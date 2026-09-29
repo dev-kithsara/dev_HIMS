@@ -10,7 +10,7 @@ export class UserRepository {
    */
   async findByDepartmentId(departmentId: number) {
     return await prisma.user.findMany({
-      where: { departmentId },
+      where: { departmentId, isActive: true },
       select: {
         id: true,
         name: true,
@@ -38,6 +38,14 @@ export class UserRepository {
         departmentId: true,
         createdAt: true,
       },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async findByRoleAndDepartment(role: Role, departmentId: number) {
+    return await prisma.user.findMany({
+      where: { role, departmentId, isActive: true },
+      select: { id: true, name: true, email: true, role: true, departmentId: true, createdAt: true },
       orderBy: { name: 'asc' },
     });
   }

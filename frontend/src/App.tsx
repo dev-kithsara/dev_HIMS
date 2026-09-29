@@ -59,8 +59,6 @@ function App() {
           >
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomeRoute />} />
-              <Route path="/incidents" element={<IncidentsList />} />
-              <Route path="/incidents/:id" element={<IncidentDetails />} />
               <Route path="/my-incidents" element={<MyIncidentsPage />} />
               <Route path="/submit-incident" element={<CreateIncident />} />
               <Route path="/investigator" element={<InvestigatorDashboard />} />
@@ -72,7 +70,10 @@ function App() {
               </Route>
               {/* Manager Only - Team Management */}
               <Route element={<ProtectedRoute allowedRoles={['MANAGER']} />}>
+                <Route path="/incidents" element={<IncidentsList />} />
+                <Route path="/incidents/:id" element={<IncidentDetails />} />
                 <Route path="/team" element={<TeamManagement />} />
+                <Route path="/analytics" element={<ManagerDashboard />} />
               </Route>
             </Route>
           </Route>

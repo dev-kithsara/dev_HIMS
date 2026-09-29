@@ -1,373 +1,49 @@
-// frontend/src/pages/IncidentDetails.tsx
-
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { managerApi } from '../api/manager.api';
 
-import {
-  useDepartmentIncidents,
-  useAcceptIncident,
-  useReviewIncident,
-  useCloseIncident,
-  useRejectIncident,
-  useAssignInvestigator,
-  useAssignActionOwner,
-} from '../hooks/useIncidents';
+const NAVY='#1E2B5E', BLUE='#2952C4', BORDER='#D8DCE8', TEXT='#1A2447', MUTED='#6B7494';
+const input='w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white outline-blue-600';
+const Panel=({title,subtitle,children}:{title:string;subtitle?:string;children:React.ReactNode})=><section className="rounded-2xl p-5 bg-white" style={{border:`1.5px solid ${BORDER}`}}><h2 className="text-lg font-extrabold" style={{color:TEXT}}>{title}</h2>{subtitle&&<p className="text-xs mt-1 mb-4" style={{color:MUTED}}>{subtitle}</p>}{children}</section>;
+const Button=({children,onClick,tone='blue',disabled=false}:{children:React.ReactNode;onClick:()=>void;tone?:'blue'|'red'|'green'|'amber';disabled?:boolean})=>{const c={blue:BLUE,red:'#DC2626',green:'#15803D',amber:'#D97706'}[tone];return <button type="button" disabled={disabled} onClick={onClick} className="px-4 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-40" style={{background:c}}>{children}</button>};
 
-import { IncidentActions } from '../components/IncidentActions';
-import { RejectModal } from '../components/RejectModal';
-import { AssignUserModal } from '../components/AssignUserModal';
-import { useAuthContext } from '../context/AuthContext';
-import { useUsersByRole } from '../hooks/useIncidents';
-
-// ── Color Tokens ───────────────────────────────────────────────────────────
-
-
-const ROYAL = '#2952C4';
-const SURFACE = '#F7F8FA';
-const BG_PAGE = '#EDEEF3';
-const BORDER = '#D8DCE8';
-const TEXT = '#1A2447';
-const MUTED = '#6B7494';
-const FAINT = '#9BA4BC';
-const ACCENT = '#2952C4';
-
-// Status badge map
-const STATUS_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  OPEN: { bg: '#EBF0FA', color: '#2952C4', border: '#C0CBE0' },
-  ACCEPTED: { bg: '#F0FDF4', color: '#16A34A', border: '#BBF7D0' },
-  REJECTED: { bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' },
-  INVESTIGATING: { bg: '#F5F3FF', color: '#7C3AED', border: '#DDD6FE' },
-  PENDING_ACTION: { bg: '#FFFBEB', color: '#D97706', border: '#FDE68A' },
-  IN_PROGRESS: { bg: '#FDF4FF', color: '#9333EA', border: '#F3E8FF' },
-  UNDER_REVIEW: { bg: '#EBF0FA', color: '#0EA5E9', border: '#BAE6FD' },
-  CLOSED: { bg: '#F0FDF4', color: '#15803D', border: '#BBF7D0' },
-};
-
-export const IncidentDetails: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { user } = useAuthContext();
-
-  const departmentId = user?.departmentId ?? 1;
-
-  const { data: incidents, isLoading } = useDepartmentIncidents(departmentId);
-  const incident = incidents?.find((inc) => inc.id === Number(id));
-
-  const acceptMutation = useAcceptIncident();
-  const reviewMutation = useReviewIncident();
-  const closeMutation = useCloseIncident();
-  const rejectMutation = useRejectIncident();
-  const assignInvestigatorMutation = useAssignInvestigator();
-  const assignActionOwnerMutation = useAssignActionOwner();
-
-  const { data: investigators = [] } = useUsersByRole('INVESTIGATOR');
-  const { data: actionOwners = [] } = useUsersByRole('ACTION_OWNER');
-
-  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
-  const [isInvestigatorModalOpen, setIsInvestigatorModalOpen] = useState(false);
-  const [isActionOwnerModalOpen, setIsActionOwnerModalOpen] = useState(false);
-
-  const handleAccept = () => {
-    if (window.confirm('Are you sure you want to accept this incident?')) {
-      acceptMutation.mutate(Number(id));
-    }
-  };
-  const handleReview = () => {
-    if (window.confirm('Mark this incident as under review?')) {
-      reviewMutation.mutate(Number(id));
-    }
-  };
-  const handleClose = () => {
-    if (
-      window.confirm('Are you sure you want to close this incident? This action cannot be undone.')
-    ) {
-      closeMutation.mutate(Number(id));
-    }
-  };
-  const handleConfirmReject = (reason: string) => {
-    rejectMutation.mutate(
-      { id: Number(id), reason },
-      { onSuccess: () => setIsRejectModalOpen(false) }
-    );
-  };
-  const handleConfirmInvestigator = (userId: number) => {
-    assignInvestigatorMutation.mutate(
-      { id: Number(id), investigatorId: userId },
-      { onSuccess: () => setIsInvestigatorModalOpen(false) }
-    );
-  };
-  const handleConfirmActionOwner = (userId: number) => {
-    assignActionOwnerMutation.mutate(
-      { id: Number(id), actionOwnerId: userId },
-      { onSuccess: () => setIsActionOwnerModalOpen(false) }
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div
-          className="animate-spin rounded-full h-10 w-10 border-[3px] border-t-transparent"
-          style={{ borderColor: `${ROYAL} transparent ${ROYAL} ${ROYAL}` }}
-        />
-      </div>
-    );
-  }
-
-  if (!incident) {
-    return (
-      <div className="p-8 text-center flex flex-col items-center">
-        <h2 className="text-xl font-semibold mb-4" style={{ color: '#EF4444' }}>
-          Incident not found
-        </h2>
-        <button
-          type="button"
-          onClick={() => navigate('/')}
-          className="text-sm font-semibold hover:underline"
-          style={{ color: ACCENT }}
-        >
-          &larr; Go back to Dashboard
-        </button>
-      </div>
-    );
-  }
-
-  const statusStyle = STATUS_STYLES[incident.status] ?? {
-    bg: '#F1F5F9',
-    color: MUTED,
-    border: '#CBD5E1',
-  };
-
-  return (
-    <div className="min-h-screen p-2 sm:p-4" style={{ color: TEXT }}>
-      <div
-        className="max-w-4xl mx-auto rounded-2xl p-6"
-        style={{
-          backgroundColor: SURFACE,
-          border: `1px solid ${BORDER}`,
-          boxShadow: '0 2px 12px rgba(17,17,132,0.07)',
-        }}
-      >
-        {/* Back */}
-        <button
-          type="button"
-          onClick={() => navigate('/')}
-          className="mb-6 text-sm font-semibold flex items-center gap-1 hover:underline cursor-pointer"
-          style={{ color: ACCENT }}
-        >
-          &larr; Back to Dashboard
-        </button>
-
-        {/* Header */}
-        <div className="pb-5 mb-6" style={{ borderBottom: `1px solid ${BORDER}` }}>
-          <div className="flex justify-between items-start flex-wrap gap-3">
-            <h1 className="text-2xl font-bold" style={{ color: TEXT }}>
-              {incident.title}
-            </h1>
-            <span
-              className="px-3 py-1 rounded-full text-xs font-bold tracking-wider"
-              style={{
-                backgroundColor: statusStyle.bg,
-                color: statusStyle.color,
-                border: `1px solid ${statusStyle.border}`,
-              }}
-            >
-              {incident.status.replace(/_/g, ' ')}
-            </span>
-          </div>
-          <p className="text-sm mt-2" style={{ color: MUTED }}>
-            Reported on: {new Date(incident.createdAt).toLocaleString()}
-          </p>
-        </div>
-
-        {/* Description */}
-        <div className="mb-8">
-          <h3 className="text-base font-semibold mb-2" style={{ color: TEXT }}>
-            Description
-          </h3>
-          <p
-            className="text-sm p-4 rounded-xl whitespace-pre-wrap leading-relaxed"
-            style={{ backgroundColor: BG_PAGE, border: `1px solid ${BORDER}`, color: MUTED }}
-          >
-            {incident.description}
-          </p>
-        </div>
-
-        {/* Info Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          {[
-            { label: 'Severity', value: incident.severity },
-            { label: 'Category', value: incident.category },
-            { label: 'Location', value: incident.location },
-            { label: 'Department', value: incident.department?.name || 'Not Available' },
-          ].map(({ label, value }) => (
-            <div
-              key={label}
-              className="p-4 rounded-xl"
-              style={{ backgroundColor: BG_PAGE, border: `1px solid ${BORDER}` }}
-            >
-              <h4
-                className="text-[11px] font-bold uppercase tracking-wider mb-1"
-                style={{ color: FAINT }}
-              >
-                {label}
-              </h4>
-              <p className="font-semibold text-sm" style={{ color: TEXT }}>
-                {value}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* People Involved */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <div
-            className="p-4 rounded-xl"
-            style={{ backgroundColor: '#EBF0FA', border: '1px solid #C0CBE0' }}
-          >
-            <h4
-              className="text-[11px] font-bold uppercase tracking-wider mb-1"
-              style={{ color: '#2952C4' }}
-            >
-              Reporter
-            </h4>
-            <p className="font-semibold text-sm" style={{ color: TEXT }}>
-              {incident.reporter?.name || 'Unknown'}
-            </p>
-          </div>
-          <div
-            className="p-4 rounded-xl"
-            style={{ backgroundColor: '#F5F3FF', border: '1px solid #DDD6FE' }}
-          >
-            <h4
-              className="text-[11px] font-bold uppercase tracking-wider mb-1"
-              style={{ color: '#7C3AED' }}
-            >
-              Investigator
-            </h4>
-            <p className="font-semibold text-sm" style={{ color: TEXT }}>
-              {incident.investigator?.name || 'Not assigned'}
-            </p>
-          </div>
-          <div
-            className="p-4 rounded-xl"
-            style={{ backgroundColor: '#F0F9FF', border: '1px solid #BAE6FD' }}
-          >
-            <h4
-              className="text-[11px] font-bold uppercase tracking-wider mb-1"
-              style={{ color: '#0369A1' }}
-            >
-              Action Owner
-            </h4>
-            <p className="font-semibold text-sm" style={{ color: TEXT }}>
-              {incident.actionOwner?.name || 'Not assigned'}
-            </p>
-          </div>
-        </div>
-
-        {/* Root Cause */}
-        <div className="mb-8">
-          <h3 className="text-base font-semibold mb-3" style={{ color: TEXT }}>
-            Root Cause Analysis
-          </h3>
-          <div
-            className="p-4 rounded-xl"
-            style={{ backgroundColor: BG_PAGE, border: `1px solid ${BORDER}` }}
-          >
-            <p className="text-sm mb-2" style={{ color: MUTED }}>
-              <span className="font-semibold" style={{ color: TEXT }}>
-                Category:{' '}
-              </span>
-              {incident.rootCauseCategory || 'Not submitted'}
-            </p>
-            <p className="text-sm font-semibold mb-1" style={{ color: TEXT }}>
-              Root Cause:
-            </p>
-            <p className="text-sm" style={{ color: MUTED }}>
-              {incident.rootCause || 'No root cause analysis submitted yet.'}
-            </p>
-          </div>
-        </div>
-
-        {/* Attachments */}
-        <div className="mb-8">
-          <h3 className="text-base font-semibold mb-3" style={{ color: TEXT }}>
-            Attachments
-          </h3>
-          <div
-            className="p-4 rounded-xl"
-            style={{ backgroundColor: BG_PAGE, border: `1px solid ${BORDER}` }}
-          >
-            {incident.attachments && incident.attachments.length > 0 ? (
-              <ul className="space-y-2">
-                {incident.attachments.map((file) => (
-                  <li
-                    key={file.id}
-                    className="flex justify-between items-center text-sm pb-2"
-                    style={{ borderBottom: `1px solid ${BORDER}`, color: TEXT }}
-                  >
-                    <span>{file.fileName}</span>
-                    <button
-                      type="button"
-                      className="font-semibold hover:underline text-xs cursor-pointer"
-                      style={{ color: ACCENT }}
-                    >
-                      View
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm" style={{ color: MUTED }}>
-                No attachments uploaded.
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <IncidentActions
-          incident={incident}
-          onAccept={handleAccept}
-          onReview={handleReview}
-          onClose={handleClose}
-          onReject={() => setIsRejectModalOpen(true)}
-          onAssignInvestigator={() => setIsInvestigatorModalOpen(true)}
-          onAssignActionOwner={() => setIsActionOwnerModalOpen(true)}
-        />
-
-        {(acceptMutation.isPending || reviewMutation.isPending || closeMutation.isPending) && (
-          <div className="mt-4 text-sm font-medium animate-pulse" style={{ color: ACCENT }}>
-            Processing action, please wait...
-          </div>
-        )}
-      </div>
-
-      {/* Modals */}
-      <RejectModal
-        isOpen={isRejectModalOpen}
-        onClose={() => setIsRejectModalOpen(false)}
-        onConfirm={handleConfirmReject}
-        isLoading={rejectMutation.isPending}
-      />
-      <AssignUserModal
-        isOpen={isInvestigatorModalOpen}
-        onClose={() => setIsInvestigatorModalOpen(false)}
-        onConfirm={handleConfirmInvestigator}
-        isLoading={assignInvestigatorMutation.isPending}
-        title="Assign Investigator"
-        description="Select an investigator to find the root cause of this incident."
-        availableUsers={investigators}
-      />
-      <AssignUserModal
-        isOpen={isActionOwnerModalOpen}
-        onClose={() => setIsActionOwnerModalOpen(false)}
-        onConfirm={handleConfirmActionOwner}
-        isLoading={assignActionOwnerMutation.isPending}
-        title="Assign Action Owner"
-        description="Select an action owner to implement corrective actions."
-        availableUsers={actionOwners}
-      />
+export const IncidentDetails:React.FC=()=>{
+  const id=Number(useParams().id); const nav=useNavigate(); const qc=useQueryClient();
+  const [comment,setComment]=useState(''); const [reason,setReason]=useState(''); const [investigatorId,setInvestigatorId]=useState(''); const [ownerId,setOwnerId]=useState('');
+  const [action,setAction]=useState({title:'',description:'',type:'CORRECTIVE',priority:'MEDIUM',dueDate:''});
+  const [control,setControl]=useState({controlType:'',effectiveness:'NOT_TESTED',failureReason:'',improvementPlan:'',status:'PLANNED'});
+  const [review,setReview]=useState({outcome:'APPROVED',comments:'',lessonsLearned:'',followUpDetails:''});
+  const [lesson,setLesson]=useState({audience:'',scheduledFor:'',status:'SCHEDULED'});
+  const [edit,setEdit]=useState({title:'',severity:'',category:'',location:'',reason:''});
+  const {data:incident,isLoading}=useQuery({queryKey:['manager-incident',id],queryFn:()=>managerApi.incident(id),enabled:Number.isInteger(id)});
+  const {data:investigators=[]}=useQuery({queryKey:['manager-candidates','investigator'],queryFn:()=>managerApi.candidates('investigator')});
+  const {data:owners=[]}=useQuery({queryKey:['manager-candidates','action-owner'],queryFn:()=>managerApi.candidates('action-owner')});
+  const {data:recommendations}=useQuery({queryKey:['manager-recommendations',id],queryFn:()=>managerApi.recommendations(id),enabled:!!incident});
+  const mutation=useMutation({mutationFn:async(fn:()=>Promise<unknown>)=>fn(),onSuccess:async()=>{toast.success('Saved and audited');await qc.invalidateQueries({queryKey:['manager-incident',id]});await qc.invalidateQueries({queryKey:['manager-dashboard']})}});
+  const run=(fn:()=>Promise<unknown>)=>mutation.mutate(fn);
+  if(isLoading)return <div className="h-80 grid place-items-center font-bold text-blue-700">Loading incident workspace…</div>;
+  if(!incident)return <div className="p-8 text-center text-red-600">Incident not found or not authorized.</div>;
+  const editChanges=Object.fromEntries(Object.entries(edit).filter(([k,v])=>k!=='reason'&&v));
+  return <div className="space-y-6 pb-6">
+    <button onClick={()=>nav('/incidents')} className="text-sm font-bold text-blue-700">← Back to incident register</button>
+    <header className="rounded-2xl p-6 text-white" style={{background:`linear-gradient(135deg,${NAVY},#1B367A)`}}><div className="flex flex-wrap justify-between gap-4"><div><div className="text-xs font-bold tracking-widest opacity-70">INCIDENT #{incident.id} • {incident.department?.name}</div><h1 className="text-3xl font-extrabold mt-2">{incident.title}</h1><p className="mt-2 opacity-80">{incident.description}</p></div><div className="text-right"><span className="px-3 py-1 rounded-full bg-white/15 text-sm font-bold">{incident.status.replaceAll('_',' ')}</span><div className="mt-3 text-sm">{incident.severity} severity</div></div></div></header>
+    <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-4">{[['Reporter',incident.reporter?.name],['Investigator',incident.investigator?.name||'Not assigned'],['Location',incident.location],['Category',incident.category],['RCA review',incident.investigationReviewStatus||'NOT SUBMITTED']].map(([k,v])=><div key={k} className="p-4 rounded-xl bg-white" style={{border:`1px solid ${BORDER}`}}><div className="text-xs uppercase font-bold" style={{color:MUTED}}>{k}</div><div className="font-bold mt-1" style={{color:TEXT}}>{v}</div></div>)}</div>
+    <div className="grid xl:grid-cols-3 gap-6">
+      <Panel title="Predictive Risk" subtitle={`${incident.predictiveRisk.modelVersion} • ${(incident.predictiveRisk.confidence*100).toFixed(0)}% confidence`}><div className="flex items-end gap-3"><b className="text-4xl" style={{color:incident.predictiveRisk.effectiveLevel==='CRITICAL'?'#DC2626':'#D97706'}}>{incident.predictiveRisk.score}</b><span className="font-bold">{incident.predictiveRisk.effectiveLevel}</span></div><ul className="text-sm text-slate-600 list-disc ml-5 mt-3">{incident.predictiveRisk.keyFactors.map(x=><li key={x}>{x}</li>)}</ul><div className="flex gap-2 mt-4"><select id="riskLevel" className={input}>{['LOW','MEDIUM','HIGH','CRITICAL'].map(v=><option key={v}>{v}</option>)}</select><Button onClick={()=>run(()=>managerApi.overrideRisk(id,{level:(document.getElementById('riskLevel') as HTMLSelectElement).value,reason}))}>Override</Button></div><textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="Mandatory override reason" className={`${input} mt-2`}/></Panel>
+      <Panel title="Manager Decision" subtitle="Accept, reject or request reporter revision with mandatory comments"><textarea value={comment} onChange={e=>setComment(e.target.value)} placeholder="Decision comment (minimum 10 characters)" className={`${input} h-24`}/><div className="flex flex-wrap gap-2 mt-3"><Button disabled={incident.status!=='OPEN'} tone="green" onClick={()=>run(()=>managerApi.decide(id,{decision:'ACCEPT',comment}))}>Accept</Button><Button disabled={incident.status!=='OPEN'} tone="red" onClick={()=>run(()=>managerApi.decide(id,{decision:'REJECT',comment}))}>Reject</Button><Button disabled={incident.status!=='OPEN'} tone="amber" onClick={()=>run(()=>managerApi.decide(id,{decision:'REQUEST_REVISION',comment}))}>Request revision</Button></div>{incident.managerDecisionComment&&<p className="text-sm mt-3 bg-slate-50 p-3 rounded-lg">Last comment: {incident.managerDecisionComment}</p>}</Panel>
+      <Panel title="Controlled Editing" subtitle="Every change requires a reason and stores before/after values"><input className={input} placeholder="Corrected title" value={edit.title} onChange={e=>setEdit({...edit,title:e.target.value})}/><div className="grid grid-cols-2 gap-2 mt-2"><select className={input} value={edit.severity} onChange={e=>setEdit({...edit,severity:e.target.value})}><option value="">Keep severity</option>{['LOW','MEDIUM','HIGH','CRITICAL'].map(v=><option key={v}>{v}</option>)}</select><input className={input} placeholder="Category" value={edit.category} onChange={e=>setEdit({...edit,category:e.target.value})}/></div><input className={`${input} mt-2`} placeholder="Location" value={edit.location} onChange={e=>setEdit({...edit,location:e.target.value})}/><textarea className={`${input} mt-2`} placeholder="Mandatory edit reason" value={edit.reason} onChange={e=>setEdit({...edit,reason:e.target.value})}/><div className="mt-2"><Button onClick={()=>run(()=>managerApi.edit(id,{reason:edit.reason,changes:editChanges}))}>Save audited changes</Button></div></Panel>
     </div>
-  );
+    <div className="grid xl:grid-cols-2 gap-6">
+      <Panel title="Investigation Assignment & Review" subtitle="Only active investigators from this department are available"><div className="flex gap-2"><select value={investigatorId} onChange={e=>setInvestigatorId(e.target.value)} className={input}><option value="">Select investigator</option>{investigators.map(u=><option key={u.id} value={u.id}>{u.name} • {u.email}</option>)}</select><Button disabled={!investigatorId||incident.status!=='ACCEPTED'} onClick={()=>run(()=>managerApi.assignInvestigator(id,Number(investigatorId)))}>Assign</Button></div><div className="mt-5 p-4 rounded-xl bg-violet-50"><b>Submitted root cause</b><p className="text-sm mt-2">{incident.rootCause||'The assigned investigator has not submitted findings.'}</p><p className="text-xs mt-2 text-violet-700">Category: {incident.rootCauseCategory||'—'}</p></div><textarea value={comment} onChange={e=>setComment(e.target.value)} placeholder="Investigation review comment" className={`${input} mt-3`}/><div className="flex gap-2 mt-2"><Button disabled={incident.investigationReviewStatus!=='SUBMITTED'} tone="green" onClick={()=>run(()=>managerApi.reviewInvestigation(id,{outcome:'APPROVE',comment}))}>Approve findings</Button><Button disabled={incident.investigationReviewStatus!=='SUBMITTED'} tone="amber" onClick={()=>run(()=>managerApi.reviewInvestigation(id,{outcome:'REQUEST_REVISION',comment}))}>Return for revision</Button></div></Panel>
+      <Panel title="AI-Assisted Context" subtitle={`${recommendations?.modelVersion??'similarity-rules-v1.0'} • human decision remains authoritative`}><div className="space-y-2">{recommendations?.similar?.length?recommendations.similar.map((x:any)=><button key={x.id} onClick={()=>nav(`/incidents/${x.id}`)} className="w-full text-left p-3 rounded-xl bg-blue-50"><b>#{x.id} {x.title}</b><div className="text-xs text-blue-700">Relevance {(x.relevance*100).toFixed(0)}% • {x.rootCauseCategory||x.category}</div></button>):<p className="text-sm text-slate-500">No similar department incident found.</p>}</div><div className="mt-4 text-sm"><b>Suggested controls</b><ul className="list-disc ml-5 text-slate-600">{recommendations?.suggestedControls?.map((x:string)=><li key={x}>{x}</li>)}</ul></div></Panel>
+    </div>
+    <Panel title="Corrective & Preventive Actions" subtitle="Multiple action items, department Action Owners, priority, due date and escalation reason"><div className="grid md:grid-cols-2 xl:grid-cols-6 gap-2"><input className={input} placeholder="Action title" value={action.title} onChange={e=>setAction({...action,title:e.target.value})}/><input className={`${input} xl:col-span-2`} placeholder="Description" value={action.description} onChange={e=>setAction({...action,description:e.target.value})}/><select className={input} value={action.type} onChange={e=>setAction({...action,type:e.target.value})}><option>CORRECTIVE</option><option>PREVENTIVE</option></select><select className={input} value={action.priority} onChange={e=>setAction({...action,priority:e.target.value})}>{['LOW','MEDIUM','HIGH','CRITICAL'].map(v=><option key={v}>{v}</option>)}</select><input type="date" className={input} value={action.dueDate} onChange={e=>setAction({...action,dueDate:e.target.value})}/><select className={`${input} xl:col-span-2`} value={ownerId} onChange={e=>setOwnerId(e.target.value)}><option value="">Select department Action Owner</option>{owners.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select><Button disabled={!ownerId||incident.investigationReviewStatus!=='APPROVED'} onClick={()=>run(()=>managerApi.createAction(id,{...action,ownerId:Number(ownerId)}))}>Create action</Button></div><div className="grid lg:grid-cols-2 gap-3 mt-5">{incident.actionItems.map(a=><div key={a.id} className="p-4 rounded-xl bg-slate-50 flex justify-between gap-3"><div><b>{a.title}</b><div className="text-xs text-slate-500">{a.type} • {a.priority} • {a.owner?.name} • due {new Date(a.dueDate).toLocaleDateString()}</div><p className="text-sm mt-2">{a.description}</p></div><div><span className="text-xs font-bold">{a.status}</span>{a.status!=='COMPLETED'&&<div className="mt-2"><Button tone="green" onClick={()=>run(()=>managerApi.updateAction(id,a.id,{status:'COMPLETED',reason:'Manager verified action completion'}))}>Complete</Button></div>}</div></div>)}</div></Panel>
+    <div className="grid xl:grid-cols-2 gap-6">
+      <Panel title="Existing Controls & Improvement Plan"><div className="grid grid-cols-2 gap-2"><input className={input} placeholder="Control type" value={control.controlType} onChange={e=>setControl({...control,controlType:e.target.value})}/><select className={input} value={control.effectiveness} onChange={e=>setControl({...control,effectiveness:e.target.value})}>{['NOT_TESTED','EFFECTIVE','PARTIALLY_EFFECTIVE','INEFFECTIVE'].map(v=><option key={v}>{v}</option>)}</select><input className={input} placeholder="Failure reason" value={control.failureReason} onChange={e=>setControl({...control,failureReason:e.target.value})}/><input className={input} placeholder="Required improvement" value={control.improvementPlan} onChange={e=>setControl({...control,improvementPlan:e.target.value})}/><select className={input} value={control.status} onChange={e=>setControl({...control,status:e.target.value})}>{['PLANNED','IN_PROGRESS','VERIFIED'].map(v=><option key={v}>{v}</option>)}</select><Button onClick={()=>run(()=>managerApi.addControl(id,control))}>Record control</Button></div><div className="mt-4 space-y-2">{incident.controls.map(c=><div key={c.id} className="p-3 rounded-xl bg-slate-50"><b>{c.controlType}</b> • {c.effectiveness} • {c.status}</div>)}</div></Panel>
+      <Panel title="Management Review"><div className="grid grid-cols-2 gap-2"><select className={input} value={review.outcome} onChange={e=>setReview({...review,outcome:e.target.value})}><option>APPROVED</option><option>REVISION_REQUIRED</option></select><input className={input} placeholder="Lessons learned" value={review.lessonsLearned} onChange={e=>setReview({...review,lessonsLearned:e.target.value})}/><textarea className={`${input} col-span-2`} placeholder="Outcome comments" value={review.comments} onChange={e=>setReview({...review,comments:e.target.value})}/><input className={`${input} col-span-2`} placeholder="Follow-up details" value={review.followUpDetails} onChange={e=>setReview({...review,followUpDetails:e.target.value})}/><Button onClick={()=>run(()=>managerApi.addReview(id,review))}>Record review</Button></div><div className="mt-4">{incident.reviews.map(r=><div key={r.id} className="p-3 rounded-xl bg-slate-50"><b>{r.outcome}</b> • {new Date(r.reviewedAt).toLocaleDateString()}<p className="text-sm">{r.comments}</p></div>)}</div></Panel>
+    </div>
+    <div className="grid xl:grid-cols-2 gap-6"><Panel title="Lessons Learned Dissemination"><div className="grid grid-cols-2 gap-2"><input className={input} placeholder="Audience / teams" value={lesson.audience} onChange={e=>setLesson({...lesson,audience:e.target.value})}/><input type="date" className={input} value={lesson.scheduledFor} onChange={e=>setLesson({...lesson,scheduledFor:e.target.value})}/><select className={input} value={lesson.status} onChange={e=>setLesson({...lesson,status:e.target.value})}>{['NOT_SCHEDULED','SCHEDULED','COMPLETED'].map(v=><option key={v}>{v}</option>)}</select><Button onClick={()=>run(()=>managerApi.addLesson(id,lesson))}>Save schedule</Button></div></Panel><Panel title="Controlled Closure / Reopen" subtitle="Closure requires completed actions, verified controls and an approved management review"><textarea value={reason} onChange={e=>setReason(e.target.value)} className={input} placeholder={incident.status==='CLOSED'?'Mandatory reopen reason':'Structured closure summary (minimum 20 characters)'}/><div className="mt-3">{incident.status==='CLOSED'?<Button tone="amber" onClick={()=>run(()=>managerApi.reopen(id,reason))}>Reopen incident</Button>:<Button tone="green" onClick={()=>run(()=>managerApi.close(id,reason))}>Validate prerequisites & close</Button>}</div>{incident.closureSummary&&<p className="mt-3 p-3 rounded-xl bg-green-50 text-sm">Closure record: {incident.closureSummary}</p>}</Panel></div>
+  </div>;
 };

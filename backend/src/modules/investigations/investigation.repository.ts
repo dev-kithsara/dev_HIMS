@@ -41,6 +41,7 @@ export class InvestigationRepository {
       data: {
         rootCause,
         rootCauseCategory,
+        investigationReviewStatus: 'SUBMITTED',
       },
     });
   }

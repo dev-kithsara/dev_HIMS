@@ -53,7 +53,10 @@ export const getUsersByRole = catchAsync(async (req: Request, res: Response) => 
     throw new AppError('Invalid role specified.', 400);
   }
 
-  const users = await userService.getUsersByRole(parsed.data.params.role);
+  const users = await userService.getUsersByRole(
+    parsed.data.params.role,
+    req.user.role === 'MANAGER' ? req.user.departmentId : undefined
+  );
 
   return res.status(200).json({
     success: true,

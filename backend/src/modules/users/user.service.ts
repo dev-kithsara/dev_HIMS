@@ -12,12 +12,14 @@ export class UserService {
     return await userRepository.findByDepartmentId(departmentId);
   }
 
-  async getUsersByRole(role: string) {
+  async getUsersByRole(role: string, departmentId?: number) {
     const validRoles = ['STAFF', 'INVESTIGATOR', 'ACTION_OWNER', 'MANAGER', 'ADMIN'];
     if (!validRoles.includes(role)) {
       throw new AppError(`Invalid role. Must be one of: ${validRoles.join(', ')}`, 400);
     }
-    return await userRepository.findByRole(role as Role);
+    return departmentId
+      ? userRepository.findByRoleAndDepartment(role as Role, departmentId)
+      : userRepository.findByRole(role as Role);
   }
 
   /**
