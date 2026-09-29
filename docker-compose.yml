@@ -1,117 +1,57 @@
+# KAIROS-HIMS/docker-compose.yml
+
 services:
-  # ── PostgreSQL 16 with pgvector ──────────────────────────────────────────
-  postgres:
-    image: pgvector/pgvector:pg16
+  # 1. Database Service
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: kairos_db
+    restart: always
     environment:
-      POSTGRES_DB:       incident_management
-      POSTGRES_USER:     ims_user
-      POSTGRES_PASSWORD: ims_password
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: rootpassword
+      POSTGRES_DB: kairos_hims
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ims_user -d incident_management"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+    networks:
+      - kairos_network
 
-  # ── Redis ────────────────────────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  # ── Node.js Backend ──────────────────────────────────────────────────────
+  # 2. Backend Service
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      network: host
-    env_file: ./backend/.env
-    environment:
-      DATABASE_URL: postgresql://ims_user:ims_password@postgres:5432/incident_management
-      AI_SERVICE_URL: http://ai-service:8001
-      REDIS_URL: redis://redis:6379
-      FRONTEND_URL: http://localhost:3000
+    build: ./backend # Tells Docker to look for the Dockerfile in the backend folder
+    container_name: kairos_backend
+    restart: always
     ports:
-      - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    restart: unless-stopped
-
-  # ── Python AI Service ────────────────────────────────────────────────────
-  ai-service:
-    build:
-      context: ./ai_service
-      dockerfile: Dockerfile
-      network: host
-    env_file: ./ai_service/.env
+      - "5000:5000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://ims_user:ims_password@postgres:5432/incident_management
-      AI_API_KEY: internal_ai_key
-    ports:
-      - "8001:8001"
+      # We use the container name 'postgres_db' instead of 'localhost'
+      DATABASE_URL: "postgresql://postgres:rootpassword@postgres_db:5432/kairos_hims?schema=public"
+      PORT: 5000
+      JWT_SECRET: "kairos_hims_super_secret_key_2026"
+      JWT_EXPIRES_IN: "24h"
     depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./ai_service:/app
-      - ai_models:/app/models
-    restart: unless-stopped
+      - postgres_db # Ensures DB starts before the backend
+    networks:
+      - kairos_network
 
-  # ── React Frontend ───────────────────────────────────────────────────────
+  # 3. Frontend Service
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    build: ./frontend # Tells Docker to look for the Dockerfile in the frontend folder
+    container_name: kairos_frontend
+    restart: always
     ports:
-      - "3000:3000"
+      - "80:80" # Maps port 80 of your laptop to port 80 of NGINX
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - VITE_API_URL=http://localhost:8000
-    restart: unless-stopped
+    networks:
+      - kairos_network
 
-# ── Named Volumes ────────────────────────────────────────────────────────────
-# Docker Engine manages the host path for each named volume.
-# Data is stored at: /var/lib/docker/volumes/ims_<name>/_data/
-# These volumes survive container stop/restart/rm — only destroyed by:
-#   docker-compose down -v   OR   docker volume rm <name>
+# Define persistent storage for the database
 volumes:
   postgres_data:
-    driver: local
-    labels:
-      com.ims.description: "PostgreSQL 16 database files for incident_management"
-      com.ims.backup: "required"
 
-  redis_data:
-    driver: local
-    labels:
-      com.ims.description: "Redis cache persistence"
-      com.ims.backup: "optional"
-
-  ai_models:
-    driver: local
-    labels:
-      com.ims.description: "AI model cache and K-Means clustering artifacts"
-      com.ims.backup: "optional"
+# Define a custom network so containers can talk to each other
+networks:
+  kairos_network:
+    driver: bridge

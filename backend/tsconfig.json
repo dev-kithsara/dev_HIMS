@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    /* Target modern JavaScript */
+    "target": "ES2022",
+
+    /* Use Node.js module system */
+    "module": "CommonJS",
+
+    /* Resolve imports like Node.js */
+    "moduleResolution": "node",
+
+    /* Source code location */
+    "rootDir": "./src",
+
+    /* Build output location */
+    "outDir": "./dist",
+
+    /* Enable strict type checking */
+    "strict": true,
+
+    /* Allow importing Express properly */
+    "esModuleInterop": true,
+
+    /* Skip checking library declaration files */
+    "skipLibCheck": true,
+
+    /* Keep filename casing consistent */
+    "forceConsistentCasingInFileNames": true
+  },
+
+  "include": ["src"]
+}

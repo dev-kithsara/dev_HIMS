@@ -1,17 +1,21 @@
-.env
+# Dependencies
 node_modules/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.egg-info/
-dist/
-build/
-*.pkl
-*.db
+backend/node_modules/
+frontend/node_modules/
+
+# Environment variables
+.env
+backend/.env
+frontend/.env
+
+# OS files
 .DS_Store
-Thumbs.db
 *.log
-logs/
-ai_models/
+
+# Local artifacts and generated output
+.codex-artifacts/
+outputs/
+tmp/
+backend/dist/
+frontend/dist/
+backend/uploads/

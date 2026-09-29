@@ -1,76 +1,66 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background:  224 71% 4%;
-    --foreground:  213 31% 91%;
-    --card:        224 71% 6%;
-    --card-foreground: 213 31% 91%;
-    --popover:     224 71% 5%;
-    --popover-foreground: 213 31% 91%;
-    --primary:     210 100% 56%;
-    --primary-foreground: 222 47% 11%;
-    --secondary:   222 47% 12%;
-    --secondary-foreground: 210 40% 98%;
-    --muted:       223 47% 11%;
-    --muted-foreground: 215 20% 55%;
-    --accent:      216 34% 17%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
-    --border:      216 34% 17%;
-    --input:       216 34% 17%;
-    --ring:        210 100% 56%;
-    --radius:      0.75rem;
-  }
+:root {
+  /* ── KAIROS Blue Family — Core Palette ───────────────────── */
+  --k-navy:           #1E2B5E;   /* Primary brand — deep royal blue  */
+  --k-navy-dark:      #16204A;   /* Sidebar active / pressed         */
+  --k-navy-light:     #192651;   /* Sidebar hover                    */
+  --k-cobalt:         #1B367A;   /* Cobalt blue — secondary actions  */
+  --k-royal:          #2952C4;   /* Royal blue — interactive elements*/
+  --k-true-blue:      #5485E0;   /* True blue — links, highlights    */
+  --k-sky:            #6E99E8;   /* Sky blue — chart accents         */
+  --k-blue-gray:      #6B7494;   /* Blue-gray — muted/secondary text */
+  --k-blue-gray-lt:   #9BA4BC;   /* Light blue-gray — placeholders   */
 
-  * {
-    border-color: hsl(var(--border));
-    box-sizing: border-box;
-  }
+  /* ── Content Area ────────────────────────────────────────── */
+  --k-bg:             #EDEEF3;   /* Page background — icy blue-white */
+  --k-surface:        #F7F8FA;   /* Card / panel surface             */
+  --k-surface-alt:    #F1F3F8;   /* Alternate surface (table rows)   */
+  --k-border:         #D8DCE8;   /* Soft blue border                 */
+  --k-border-dark:    #C0CBE0;   /* Slightly darker border           */
 
-  body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    font-family: 'Inter', sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+  /* ── Text ────────────────────────────────────────────────── */
+  --k-text-primary:   #1A2447;   /* Deep navy — headings             */
+  --k-text-body:      #3B4565;   /* Slate — body text                */
+  --k-text-muted:     #6B7494;   /* Muted — secondary text           */
+  --k-text-faint:     #9BA4BC;   /* Faint — labels, placeholders     */
 
-  /* Scrollbar */
-  ::-webkit-scrollbar       { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: hsl(var(--background)); }
-  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 9999px; }
-  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+  /* ── Sidebar ─────────────────────────────────────────────── */
+  --k-sidebar-bg:     #1E2B5E;
+  --k-sidebar-border: #192651;
+  --k-sidebar-text:   rgba(255,255,255,0.72);
+  --k-sidebar-active: rgba(255,255,255,0.14);
+  --k-sidebar-hover:  rgba(255,255,255,0.08);
+
+  /* ── Header ──────────────────────────────────────────────── */
+  --k-header-bg:      #1E2B5E;
+  --k-header-border:  #192651;
+
+  /* ── Danger / Status ─────────────────────────────────────── */
+  --k-danger:         #EF4444;
+
+  /* ── Severity ────────────────────────────────────────────── */
+  --sev-low:          #22C55E;
+  --sev-medium:       #EAB308;
+  --sev-high:         #F97316;
+  --sev-critical:     #EF4444;
+
+  /* ── Status ──────────────────────────────────────────────── */
+  --status-open:      #5485E0;
+  --status-accepted:  #10B981;
+  --status-rejected:  #EF4444;
+  --status-investing: #8B5CF6;
+  --status-pending:   #F59E0B;
+  --status-progress:  #EC4899;
+  --status-review:    #0EA5E9;
+  --status-closed:    #22C55E;
 }
 
-@layer components {
-  /* Glassmorphism card */
-  .card-glass {
-    @apply bg-card/60 backdrop-blur-xl border border-border/50 rounded-xl;
-  }
+/* ── Scrollbar ────────────────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--k-border-dark); border-radius: 99px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--k-true-blue); }
 
-  /* Gradient text */
-  .gradient-text {
-    @apply bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent;
-  }
-
-  /* Severity badges */
-  .severity-low      { @apply bg-green-500/15  text-green-400  border border-green-500/25 rounded-full; }
-  .severity-medium   { @apply bg-yellow-500/15 text-yellow-400 border border-yellow-500/25 rounded-full; }
-  .severity-high     { @apply bg-orange-500/15 text-orange-400 border border-orange-500/25 rounded-full; }
-  .severity-critical { @apply bg-red-500/15    text-red-400    border border-red-500/25    rounded-full; }
-
-  /* Status badges */
-  .status-open         { @apply bg-blue-500/15   text-blue-400   border border-blue-500/25   rounded-full; }
-  .status-in_progress  { @apply bg-purple-500/15 text-purple-400 border border-purple-500/25 rounded-full; }
-  .status-under_review { @apply bg-yellow-500/15 text-yellow-400 border border-yellow-500/25 rounded-full; }
-  .status-closed       { @apply bg-green-500/15  text-green-400  border border-green-500/25  rounded-full; }
-
-  /* Glow button */
-  .btn-glow {
-    @apply shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow;
-  }
-}

@@ -1,6 +1,13 @@
+// This is your Prisma schema file
+
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
+  // Tell Prisma to generate engine binaries for:
+  //  - "native"                    → local Windows dev machine
+  //  - "linux-musl-openssl-3.0.x" → Alpine Linux (Docker) with OpenSSL 3.x
+  // Without this, Prisma downloads the OpenSSL 1.1 engine binary which
+  // doesn't work on Alpine 3.18+ (which ships OpenSSL 3 only).
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -8,194 +15,189 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// 1. Use an enum to manage the various states of an Incident
+enum IncidentStatus {
+  OPEN
+  ACCEPTED
+  REJECTED
+  INVESTIGATING
+  PENDING_ACTION
+  UNDER_REVIEW
+  CLOSED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  INVESTIGATOR
+  ACTION_OWNER
+  STAFF
+}
+
+enum AiModelStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  DEPLOYED
+  REJECTED
+  RETIRED
+  ROLLED_BACK
+}
+
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String   @db.VarChar(100)
-  email     String   @unique @db.VarChar(150)
-  password  String   @db.VarChar(255)
-  role      String   @default("investigator")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id            Int        @id @default(autoincrement())
+  email         String     @unique
+  password      String
+  name          String
+  role          Role       @default(STAFF)
+  departmentId  Int
+  department    Department @relation(fields: [departmentId], references: [id])
+  isActive      Boolean    @default(true)
+  deactivatedAt DateTime?
 
-  reportedIncidents Incident[]             @relation("ReportedBy")
-  assignedActions   IncidentAction[]       @relation("AssignedTo")
-  investigations    IncidentInvestigation[]
-  controlsOwned     IncidentControl[]
-  reviews           IncidentReview[]
-  closures          IncidentClosure[]
-  auditLogs         AuditLog[]
+  // 2. Use relation names because a single User can have multiple relationships
+  reportedIncidents     Incident[]           @relation("Reporter")
+  investigatedIncidents Incident[]           @relation("Investigator")
+  ownedActions          Incident[]           @relation("ActionOwner")
+  auditLogs             AuditLog[]           @relation("AuditActor")
+  incidentCorrections   IncidentCorrection[] @relation("CorrectionActor")
 
-  @@map("users")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Department {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  isActive    Boolean    @default(true)
+  users       User[]
+  incidents   Incident[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model Incident {
-  id                 Int       @id @default(autoincrement())
-  title              String    @db.VarChar(255)
-  description        String
-  severity           String
-  category           String?   @db.VarChar(100)
-  location           String?   @db.VarChar(200)
-  department         String?   @db.VarChar(100)
-  reportedBy         Int?      @map("reported_by")
-  status             String    @default("OPEN")
-  aiProcessed        Boolean   @default(false) @map("ai_processed")
-  predictedRiskScore Float?    @map("predicted_risk_score")
-  clusterId          Int?      @map("cluster_id")
-  deletedAt          DateTime? @map("deleted_at")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  id              Int            @id @default(autoincrement())
+  title           String
+  description     String
+  severity        Severity
+  category        String
+  location        String
+  status          IncidentStatus @default(OPEN)
+  rejectionReason String? // Value provided only if rejected (optional)
 
-  reporter      User?                  @relation("ReportedBy", fields: [reportedBy], references: [id])
-  actions       IncidentAction[]
-  investigation IncidentInvestigation?
-  rootCause     IncidentRootCause?
-  controls      IncidentControl[]
-  review        IncidentReview?
-  closure       IncidentClosure?
-  embedding     AiEmbedding?
+  // Root Cause Analysis (Feature 4)
+  rootCause         String? @map("root_cause")
+  rootCauseCategory String? @map("root_cause_category")
 
-  @@map("incidents")
+  correctiveAction String?
+
+  // 3. Foreign keys and relationships
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  reporterId Int
+  reporter   User @relation("Reporter", fields: [reporterId], references: [id])
+
+  investigatorId Int? // Optional because not assigned initially
+  investigator   User? @relation("Investigator", fields: [investigatorId], references: [id])
+
+  actionOwnerId Int? // Optional because not assigned initially
+  actionOwner   User? @relation("ActionOwner", fields: [actionOwnerId], references: [id])
+
+  // File attachments (Kasun's feature)
+  attachments IncidentAttachment[]
+  corrections IncidentCorrection[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model IncidentAction {
-  id          Int       @id @default(autoincrement())
-  incidentId  Int       @map("incident_id")
-  actionTaken String    @map("action_taken")
-  assignedTo  Int?      @map("assigned_to")
-  priority    String    @default("MEDIUM")
-  dueDate     DateTime? @map("due_date") @db.Date
-  status      String    @default("PENDING")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+model IncidentAttachment {
+  id       Int    @id @default(autoincrement())
+  fileName String
+  filePath String
+  fileType String
 
-  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-  assignee User?    @relation("AssignedTo", fields: [assignedTo], references: [id])
+  incidentId Int
+  incident   Incident @relation(fields: [incidentId], references: [id])
 
-  @@map("incident_actions")
+  uploadedAt DateTime @default(now())
 }
 
-model IncidentInvestigation {
-  id                Int       @id @default(autoincrement())
-  incidentId        Int       @unique @map("incident_id")
-  findings          String?
-  evidence          String?
-  evidenceFiles     String[]  @map("evidence_files")
-  investigatedBy    Int?      @map("investigated_by")
-  investigationDate DateTime? @map("investigation_date") @db.Date
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-
-  incident     Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-  investigator User?    @relation(fields: [investigatedBy], references: [id])
-
-  @@map("incident_investigations")
-}
-
-model IncidentRootCause {
-  id                  Int      @id @default(autoincrement())
-  incidentId          Int      @unique @map("incident_id")
-  rootCauseCategory   String   @map("root_cause_category")
-  description         String
-  contributingFactors String?  @map("contributing_factors")
-  causalChain         String?  @map("causal_chain")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
-
-  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-
-  @@map("incident_root_causes")
-}
-
-model IncidentControl {
-  id                 Int       @id @default(autoincrement())
-  incidentId         Int       @map("incident_id")
-  controlType        String    @map("control_type")
-  description        String
-  owner              Int?
-  implementationDate DateTime? @map("implementation_date") @db.Date
-  status             String    @default("PLANNED")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
-
-  incident     Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-  controlOwner User?    @relation(fields: [owner], references: [id])
-
-  @@map("incident_controls")
-}
-
-model IncidentReview {
-  id                  Int       @id @default(autoincrement())
-  incidentId          Int       @unique @map("incident_id")
-  reviewerId          Int?      @map("reviewer_id")
-  reviewNotes         String?   @map("review_notes")
-  effectivenessRating Int?      @map("effectiveness_rating")
-  reviewDate          DateTime? @map("review_date") @db.Date
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
-
-  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-  reviewer User?    @relation(fields: [reviewerId], references: [id])
-
-  @@map("incident_reviews")
-}
-
-model IncidentClosure {
-  id             Int      @id @default(autoincrement())
-  incidentId     Int      @unique @map("incident_id")
-  closureSummary String   @map("closure_summary")
-  lessonsLearned String?  @map("lessons_learned")
-  closedBy       Int?     @map("closed_by")
-  closureDate    DateTime @map("closure_date") @db.Date
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-  closer   User?    @relation(fields: [closedBy], references: [id])
-
-  @@map("incident_closures")
-}
-
-model AiEmbedding {
-  id         Int                              @id @default(autoincrement())
-  incidentId Int                              @unique @map("incident_id")
-  embedding  Unsupported("vector(384)")?
-  umapX      Float?                           @map("umap_x")
-  umapY      Float?                           @map("umap_y")
-  textHash   String?                          @map("text_hash") @db.VarChar(64)
-  createdAt  DateTime                         @default(now()) @map("created_at")
-  updatedAt  DateTime                         @updatedAt @map("updated_at")
-
-  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-
-  @@map("ai_embeddings")
+model IncidentCorrection {
+  id         Int      @id @default(autoincrement())
+  incidentId Int
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  actorId    Int
+  actor      User     @relation("CorrectionActor", fields: [actorId], references: [id])
+  reason     String
+  before     Json
+  after      Json
+  createdAt  DateTime @default(now())
 }
 
 model AuditLog {
-  id         Int      @id @default(autoincrement())
-  userId     Int?     @map("user_id")
-  action     String   @db.VarChar(50)
-  entityType String?  @map("entity_type") @db.VarChar(50)
-  entityId   Int?     @map("entity_id")
-  ipAddress  String?  @map("ip_address") @db.VarChar(45)
-  createdAt  DateTime @default(now()) @map("created_at")
+  id           Int      @id @default(autoincrement())
+  actorId      Int?
+  actor        User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorEmail   String?
+  actorRole    Role?
+  eventType    String
+  action       String
+  entityType   String
+  entityId     String?
+  departmentId Int?
+  before       Json?
+  after        Json?
+  metadata     Json?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
 
-  user User? @relation(fields: [userId], references: [id])
-
-  @@map("audit_logs")
+  @@index([actorId])
+  @@index([departmentId])
+  @@index([eventType])
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
-model ModelMetrics {
-  id              Int      @id @default(autoincrement())
-  modelType       String   @map("model_type") @db.VarChar(50)
-  accuracy        Float?
-  precisionScore  Float?   @map("precision_score")
-  recallScore     Float?   @map("recall_score")
-  f1Score         Float?   @map("f1_score")
-  trainingSamples Int?     @map("training_samples")
-  optimalK        Int?     @map("optimal_k")
-  silhouetteScore Float?   @map("silhouette_score")
-  trainedAt       DateTime @default(now()) @map("trained_at")
+model SystemConfig {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  category    String
+  value       Json
+  description String?
+  isActive    Boolean  @default(true)
+  updatedById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
 
-  @@map("model_metrics")
+model AiModelVersion {
+  id                Int           @id @default(autoincrement())
+  modelName         String
+  version           String
+  datasetVersion    String
+  trainingDate      DateTime
+  metrics           Json?
+  status            AiModelStatus @default(DRAFT)
+  accuracy          Float?
+  driftScore        Float?
+  latencyMs         Float?
+  deploymentHistory Json?
+  isActive          Boolean       @default(false)
+  createdById       Int?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([modelName, version])
+  @@index([status])
 }

@@ -1,32 +1,40 @@
-# Build stage: install dependencies and generate Prisma client
-FROM node:20-slim AS builder
+# backend/Dockerfile
 
+# 1. Base Image
+FROM node:20-alpine
+
+# 2. Set the working directory inside the container
 WORKDIR /app
 
-RUN apt-get update \
-  && apt-get install -y openssl \
-  && rm -rf /var/lib/apt/lists/*
+# 3. Install OpenSSL (v3.x) — Alpine 3.20 ships OpenSSL 3 by default.
+RUN apk add --no-cache openssl
 
+# 4. Copy package.json and package-lock.json first
 COPY package*.json ./
-RUN npm ci
 
+# 5. Install dependencies
+RUN npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm ci --ignore-scripts --no-audit --no-fund --loglevel=error
+
+# 6. Copy the rest of the application code
 COPY . .
-RUN npx prisma generate
 
-# Runtime stage: keep only what is needed to run the app
-FROM node:20-slim AS runtime
+# 7. Generate Prisma Client at BUILD TIME
+RUN npx prisma generate --no-hints
 
-WORKDIR /app
+# 8. Build the TypeScript code into JavaScript
+RUN npm run build
 
-RUN apt-get update \
-  && apt-get install -y openssl \
-  && rm -rf /var/lib/apt/lists/*
+# 9. Change ownership to non-root node user
+RUN chown -R node:node /app
 
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/src ./src
+# 10. Run as non-root user
+USER node
 
-EXPOSE 8000
+# 11. Expose the port the app runs on
+EXPOSE 5000
 
-CMD ["npm", "run", "dev"]
+# 12. The command to start the application
+CMD ["npm", "start"]
