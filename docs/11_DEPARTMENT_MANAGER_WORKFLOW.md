@@ -16,7 +16,7 @@ The Manager workspace is restricted to the department embedded in the authentica
 
 ## Manager UI changes
 
-- **Dashboard:** submitted, investigating, overdue-action, review-pending, high-risk, and closed queues; incident-frequency, root-cause, control-effectiveness, resolution-time, and ageing views.
+- **Dashboard:** submitted, investigating, overdue-action, review-pending, high-risk, and closed queues; incident-frequency, root-cause, control-effectiveness, severity-accuracy, resolution-time, and ageing views.
 - **Incident Register:** department-scoped server search, status/severity/category filtering, sorting, pagination, and authorized CSV export.
 - **Incident Workspace:** audited decision and editing controls, department-only assignment lists, investigation review, CAPA, controls, management review, dissemination, predictive-risk explanation/override, similar-incident context, closure, and reopen.
 - **My Team:** active department members only; role delegation remains constrained to Staff, Investigator, and Action Owner.

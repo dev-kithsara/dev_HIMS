@@ -303,6 +303,15 @@ export class ManagerService {
     const closed = incidents.filter((item) => item.closedAt);
     const averageResolutionHours = closed.length ? closed.reduce((sum, item) => sum + ((item.closedAt!.getTime() - item.createdAt.getTime()) / 3600000), 0) / closed.length : 0;
     const highRisk = incidents.filter((item) => ['HIGH', 'CRITICAL'].includes(item.riskOverride ?? item.severity));
+    const severityRank: Record<Severity, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 };
+    const severityAccuracy = incidents.reduce((result, item) => {
+      if (!item.originalSeverity) return result;
+      const difference = severityRank[item.severity] - severityRank[item.originalSeverity];
+      if (difference > 0) result.underRated += 1;
+      else if (difference < 0) result.overRated += 1;
+      else result.matched += 1;
+      return result;
+    }, { matched: 0, underRated: 0, overRated: 0 });
     return {
       summary: {
         submitted: incidents.filter((item) => item.status === 'OPEN').length,
@@ -317,6 +326,7 @@ export class ManagerService {
       rootCauseDistribution: [...rootCause.entries()].map(([name, value]) => ({ name, value })),
       controlEffectiveness: [...controlEffectiveness.entries()].map(([name, value]) => ({ name, value })),
       averageResolutionHours,
+      severityAccuracy,
       ageing: [
         { name: '0-7 days', value: incidents.filter((item) => (now.getTime() - item.createdAt.getTime()) / 86400000 <= 7 && item.status !== 'CLOSED').length },
         { name: '8-30 days', value: incidents.filter((item) => { const age = (now.getTime() - item.createdAt.getTime()) / 86400000; return age > 7 && age <= 30 && item.status !== 'CLOSED'; }).length },

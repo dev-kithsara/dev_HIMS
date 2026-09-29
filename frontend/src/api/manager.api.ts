@@ -7,6 +7,7 @@ export interface ManagerDashboardData {
   rootCauseDistribution: { name: string; value: number }[];
   controlEffectiveness: { name: string; value: number }[];
   averageResolutionHours: number;
+  severityAccuracy: { matched: number; underRated: number; overRated: number };
   ageing: { name: string; value: number }[];
   queues: { submitted: Incident[]; reviewPending: Incident[]; overdueActions: ManagerAction[] };
 }
