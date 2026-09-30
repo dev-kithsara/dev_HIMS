@@ -1,0 +1,17 @@
+import { Router } from 'express';
+import { authenticate,authorizeRoles } from '../../middlewares/auth.middleware';
+import upload from '../../middlewares/upload.middleware';
+import { assist,config,deleteDraft,detail,feedback,getDraft,list,resubmit,saveDraft,submit } from './staff.controller';
+const router=Router();
+router.use(authenticate,authorizeRoles('STAFF'));
+router.get('/reporting-config',config);
+router.get('/incidents',list);
+router.post('/incidents',upload.array('evidence',5),submit);
+router.get('/incidents/:id',detail);
+router.patch('/incidents/:id/resubmit',resubmit);
+router.get('/draft',getDraft);
+router.put('/draft',saveDraft);
+router.delete('/draft',deleteDraft);
+router.post('/assist',assist);
+router.post('/ai-feedback',feedback);
+export default router;

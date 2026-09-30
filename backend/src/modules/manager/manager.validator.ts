@@ -31,6 +31,7 @@ export const incidentListQuerySchema = z.object({
 export const managerDecisionSchema = z.object({
   decision: z.enum(['ACCEPT', 'REJECT', 'REQUEST_REVISION']),
   comment: z.string().trim().min(10).max(1000),
+  revisionFields: z.array(z.enum(['title', 'description', 'severity', 'category', 'subcategory', 'location', 'departmentId', 'occurrenceAt'])).min(1).optional(),
 });
 
 export const managerEditSchema = z.object({

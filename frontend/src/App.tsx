@@ -17,6 +17,7 @@ import { TeamManagement } from './pages/TeamManagement';
 import MyIncidentsPage from './pages/MyIncidentsPage';
 import { useAuthContext } from './context/AuthContext';
 import { AdminDashboard } from './pages/AdminDashboard';
+import StaffIncidentDetails from './pages/StaffIncidentDetails';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
@@ -59,8 +60,11 @@ function App() {
           >
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomeRoute />} />
-              <Route path="/my-incidents" element={<MyIncidentsPage />} />
-              <Route path="/submit-incident" element={<CreateIncident />} />
+              <Route element={<ProtectedRoute allowedRoles={['STAFF']} />}>
+                <Route path="/my-incidents" element={<MyIncidentsPage />} />
+                <Route path="/my-incidents/:id" element={<StaffIncidentDetails />} />
+                <Route path="/submit-incident" element={<CreateIncident />} />
+              </Route>
               <Route path="/investigator" element={<InvestigatorDashboard />} />
               <Route path="/investigator/:id" element={<InvestigatorWorkspace />} />
               <Route path="/action-owner" element={<ActionOwnerDashboard />} />

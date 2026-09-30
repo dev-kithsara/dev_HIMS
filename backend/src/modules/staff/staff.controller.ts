@@ -1,0 +1,17 @@
+import { Request,Response } from 'express';
+import { Role } from '@prisma/client';
+import { catchAsync } from '../../utils/catchAsync';
+import { staffService,StaffActor } from './staff.service';
+import { assistSchema,draftSchema,feedbackSchema,idSchema,listSchema,revisionSchema,submitSchema } from './staff.validator';
+const actorFrom=(req:Request):StaffActor=>({id:req.user!.id,role:req.user!.role as Role,departmentId:req.user!.departmentId,ipAddress:req.ip});
+const queryFrom=(req:Request)=>Object.fromEntries(Object.entries(req.query).map(([k,v])=>[k,String(v??'')]));
+export const config=catchAsync(async(req:Request,res:Response)=>res.json({success:true,data:await staffService.config()}));
+export const list=catchAsync(async(req:Request,res:Response)=>res.json({success:true,data:await staffService.list(actorFrom(req),listSchema.parse(queryFrom(req)))}));
+export const detail=catchAsync(async(req:Request,res:Response)=>res.json({success:true,data:await staffService.detail(idSchema.parse(req.params.id),actorFrom(req))}));
+export const getDraft=catchAsync(async(req:Request,res:Response)=>res.json({success:true,data:await staffService.draft(actorFrom(req))}));
+export const saveDraft=catchAsync(async(req:Request,res:Response)=>res.json({success:true,message:'Private draft saved.',data:await staffService.saveDraft(draftSchema.parse(req.body),actorFrom(req))}));
+export const deleteDraft=catchAsync(async(req:Request,res:Response)=>res.json({success:true,data:await staffService.deleteDraft(actorFrom(req))}));
+export const submit=catchAsync(async(req:Request,res:Response)=>res.status(201).json({success:true,message:'Incident submitted successfully.',data:await staffService.submit(submitSchema.parse(req.body),req.files as Express.Multer.File[],actorFrom(req))}));
+export const resubmit=catchAsync(async(req:Request,res:Response)=>res.json({success:true,message:'Revised incident resubmitted.',data:await staffService.resubmit(idSchema.parse(req.params.id),revisionSchema.parse(req.body),actorFrom(req))}));
+export const assist=catchAsync(async(req:Request,res:Response)=>res.json({success:true,data:await staffService.assist(assistSchema.parse(req.body),actorFrom(req))}));
+export const feedback=catchAsync(async(req:Request,res:Response)=>res.status(201).json({success:true,data:await staffService.feedback(feedbackSchema.parse(req.body),actorFrom(req))}));

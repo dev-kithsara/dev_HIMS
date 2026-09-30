@@ -34,25 +34,32 @@ export const createIncidentService = async (
     prisma.user.findUnique({ where: { id: reporterId } }),
   ]);
 
-  if (!departmentExists) {
-    throw new AppError('The selected department does not exist.', 404);
+  if (!departmentExists || !departmentExists.isActive) {
+    throw new AppError('The selected department does not exist or is inactive.', 404);
   }
 
   if (!reporterExists) {
     throw new AppError('The reporter user does not exist.', 404);
   }
 
-  const incident = await prisma.incident.create({
-    data: {
+  const incident = await prisma.$transaction(async (tx) => {
+    const created = await tx.incident.create({ data: {
       title: data.title,
       description: data.description,
       severity: data.severity,
       category: data.category,
+      subcategory: data.subcategory ?? 'Other Reportable Event',
       location: data.location,
+      occurrenceAt: data.occurrenceAt ? new Date(data.occurrenceAt) : new Date(),
+      reportedAt: new Date(),
       status: 'OPEN',
       departmentId,
       reporterId,
-    },
+    }});
+    const referenceId = `HIMS-${created.reportedAt.getUTCFullYear()}-${String(created.id).padStart(6, '0')}`;
+    const updated = await tx.incident.update({ where: { id: created.id }, data: { referenceId } });
+    await tx.staffIncidentVersion.create({ data: { incidentId: created.id, version: 1, snapshot: { title: updated.title, description: updated.description, severity: updated.severity, category: updated.category, subcategory: updated.subcategory, location: updated.location, departmentId: updated.departmentId, occurrenceAt: updated.occurrenceAt } } });
+    return updated;
   });
 
   if (files && files.length > 0) {

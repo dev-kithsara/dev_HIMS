@@ -113,7 +113,7 @@ export class IncidentRepository {
     // Note: 'any' is used temporarily for status. We will use the proper Prisma Enum type later.
     return await prisma.incident.update({
       where: { id: id },
-      data: { status: status },
+      data: status === 'ACCEPTED' ? { status, managerDecisionType: 'ACCEPT', managerDecisionAt: new Date(), revisionFields: [] } : { status },
     });
   }
 
@@ -128,7 +128,11 @@ export class IncidentRepository {
       where: { id: id },
       data: { 
         status: 'REJECTED',
-        rejectionReason: reason 
+        rejectionReason: reason,
+        managerDecisionComment: reason,
+        managerDecisionType: 'REJECT',
+        managerDecisionAt: new Date(),
+        revisionFields: [],
       },
     });
   }

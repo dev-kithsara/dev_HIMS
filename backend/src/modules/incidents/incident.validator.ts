@@ -20,6 +20,10 @@ export const incidentSchema = z.object({
     .string()
     .min(2, "Category is required"),
 
+  subcategory: z.string().min(2).optional(),
+
+  occurrenceAt: z.coerce.date().optional(),
+
   location: z
     .string()
     .min(2, "Location is required"),

@@ -164,6 +164,8 @@ model User {
   actionHistory         ActionHistory[]
   actionNotifications   ActionNotification[]
   actionAiFeedback      ActionAiFeedback[]
+  staffDraft            StaffIncidentDraft?
+  staffAiFeedback       StaffAiFeedback[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -182,6 +184,7 @@ model Department {
 
 model Incident {
   id              Int            @id @default(autoincrement())
+  referenceId     String?         @unique
   title           String
   description     String
   severity        Severity
@@ -189,6 +192,13 @@ model Incident {
   location        String
   status          IncidentStatus @default(OPEN)
   rejectionReason String? // Value provided only if rejected (optional)
+  occurrenceAt    DateTime?
+  reportedAt      DateTime        @default(now())
+  subcategory     String?
+  managerDecisionType String?
+  managerDecisionAt   DateTime?
+  revisionFields      String[]    @default([])
+  staffRevisionNumber Int         @default(0)
 
   // Root Cause Analysis (Feature 4)
   rootCause         String? @map("root_cause")
@@ -234,9 +244,52 @@ model Incident {
   investigationRecord Investigation?
   relatedIncidentLinks IncidentRelationship[] @relation("RelatedIncidentSource")
   relatedFromIncidents IncidentRelationship[] @relation("RelatedIncidentTarget")
+  staffVersions       StaffIncidentVersion[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model StaffIncidentDraft {
+  id           Int      @id @default(autoincrement())
+  reporterId   Int      @unique
+  reporter     User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  title        String?
+  description  String?
+  severity     Severity?
+  category     String?
+  subcategory  String?
+  location     String?
+  departmentId Int?
+  occurrenceAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model StaffIncidentVersion {
+  id           Int      @id @default(autoincrement())
+  incidentId   Int
+  incident     Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  version      Int
+  snapshot     Json
+  changeReason String?
+  createdAt    DateTime @default(now())
+
+  @@unique([incidentId, version])
+  @@index([incidentId, createdAt])
+}
+
+model StaffAiFeedback {
+  id         Int              @id @default(autoincrement())
+  reporterId Int
+  reporter   User             @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  feature    String
+  suggestion Json
+  action     AiFeedbackAction
+  reason     String?
+  createdAt  DateTime         @default(now())
+
+  @@index([reporterId, feature, createdAt])
 }
 
 model Investigation {

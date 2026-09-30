@@ -144,14 +144,15 @@ export class ManagerService {
     });
   }
 
-  async decide(id: number, input: { decision: 'ACCEPT' | 'REJECT' | 'REQUEST_REVISION'; comment: string }, actor: ManagerActor) {
+  async decide(id: number, input: { decision: 'ACCEPT' | 'REJECT' | 'REQUEST_REVISION'; comment: string; revisionFields?: string[] }, actor: ManagerActor) {
     const incident = await this.incidentForManager(id, actor);
     if (incident.status !== 'OPEN') throw new AppError('Only submitted incidents can receive an initial decision.', 409);
+    const defaultRevisionFields = ['title', 'description', 'severity', 'category', 'subcategory', 'location', 'occurrenceAt'];
     const data: Prisma.IncidentUpdateInput = input.decision === 'ACCEPT'
-      ? { status: 'ACCEPTED', managerDecisionComment: input.comment }
+      ? { status: 'ACCEPTED', managerDecisionComment: input.comment, managerDecisionType: 'ACCEPT', managerDecisionAt: new Date(), revisionFields: [] }
       : input.decision === 'REJECT'
-        ? { status: 'REJECTED', rejectionReason: input.comment, managerDecisionComment: input.comment }
-        : { managerDecisionComment: input.comment };
+        ? { status: 'REJECTED', rejectionReason: input.comment, managerDecisionComment: input.comment, managerDecisionType: 'REJECT', managerDecisionAt: new Date(), revisionFields: [] }
+        : { status: 'OPEN', managerDecisionComment: input.comment, managerDecisionType: 'REQUEST_REVISION', managerDecisionAt: new Date(), revisionFields: input.revisionFields?.length ? input.revisionFields : defaultRevisionFields };
     const updated = await prisma.incident.update({ where: { id }, data });
     await this.audit(actor, input.decision, id, incident, updated, { comment: input.comment });
     return updated;

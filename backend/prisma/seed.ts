@@ -135,8 +135,20 @@ async function main() {
   for (const inc of incidentsData) {
     // We use the title as a unique identifier for the seed script (assuming titles are unique here)
     // If you don't have a unique constraint on title, we just create them (might cause duplicates if run multiple times)
-    const createdIncident = await prisma.incident.create({
-      data: inc as any,
+    const createdIncidentBase = await prisma.incident.create({
+      data: {
+        ...inc,
+        occurrenceAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        reportedAt: new Date(),
+        subcategory: inc.category === 'FACILITY' ? 'Fire or Alarm' : inc.category === 'EQUIPMENT' ? 'Device Failure' : inc.category === 'CLINICAL' ? 'Medication Error' : inc.category === 'SAFETY' ? 'Near Miss' : 'Other Reportable Event',
+      } as any,
+    });
+    const createdIncident = await prisma.incident.update({
+      where: { id: createdIncidentBase.id },
+      data: { referenceId: `HIMS-${createdIncidentBase.reportedAt.getUTCFullYear()}-${String(createdIncidentBase.id).padStart(6, '0')}` },
+    });
+    await prisma.staffIncidentVersion.create({
+      data: { incidentId: createdIncident.id, version: 1, snapshot: { title: createdIncident.title, description: createdIncident.description, severity: createdIncident.severity, category: createdIncident.category, subcategory: createdIncident.subcategory, location: createdIncident.location, departmentId: createdIncident.departmentId, occurrenceAt: createdIncident.occurrenceAt } },
     });
     createdIncidents.push(createdIncident);
   }

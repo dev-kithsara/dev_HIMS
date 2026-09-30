@@ -39,7 +39,7 @@ router.post(
 router.get(
   '/department/:departmentId', 
   authenticate, // 1. Check if user is logged in (has valid token)
-  authorizeRoles('MANAGER', 'STAFF'), // 2. Check if user has the 'MANAGER','STAFF' role
+  authorizeRoles('MANAGER'), // Staff must use the ownership-scoped /api/staff/incidents endpoint
   getDepartmentIncidents // 3. If both pass, execute the controller
 );
 

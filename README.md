@@ -51,7 +51,7 @@ The system enforces a strict **role-based access control (RBAC)** model across f
 
 | Feature                   | Status     | Description                                      |
 | ------------------------- | ---------- | ------------------------------------------------ |
-| Staff Incident Submission | ✅ Live    | Form with file uploads, Zod validation, JWT auth |
+| Staff Reporting Workspace | ✅ Live    | Own-only register, private drafts, revisions, evidence, timeline and explainable report assistance |
 | Department Manager Workflow | ✅ Live  | Department-scoped decisions, RCA review, CAPA, controls, closure and risk analytics |
 | Investigator Workspace    | ✅ Live    | Assigned-case drafts, teams, evidence, timeline, structured RCA and explainable AI |
 | Action Owner Workspace    | ✅ Live    | Assignment-scoped action queue, progress, evidence, verification, alerts and explainable recommendations |
@@ -146,10 +146,11 @@ backend/src/modules/
 ├── incidents/           # Incident workflow and secure evidence access
 ├── investigations/      # Root-cause analysis
 ├── manager/             # Department workflow, controls, reviews, risk and analytics
+├── staff/               # Private reporting, drafts, revisions and Staff assistance
 └── users/               # Team and role management
 ```
 
-The application is still one deployable backend and one database, but its business capabilities are now isolated as modules. This preserves existing API behaviour while reducing coupling. See [Admin governance documentation](docs/10_ADMIN_GOVERNANCE.md), the [Department Manager workflow](docs/11_DEPARTMENT_MANAGER_WORKFLOW.md), the [Investigator workspace](docs/12_INVESTIGATOR_WORKSPACE.md), and the [Action Owner workspace](docs/13_ACTION_OWNER_WORKSPACE.md).
+The application is still one deployable backend and one database, but its business capabilities are now isolated as modules. This preserves existing API behaviour while reducing coupling. See [Admin governance documentation](docs/10_ADMIN_GOVERNANCE.md), the [Department Manager workflow](docs/11_DEPARTMENT_MANAGER_WORKFLOW.md), the [Investigator workspace](docs/12_INVESTIGATOR_WORKSPACE.md), the [Action Owner workspace](docs/13_ACTION_OWNER_WORKSPACE.md), and the [Staff reporting workspace](docs/14_STAFF_REPORTING_WORKSPACE.md).
 
 ### Role-Based Workflow
 

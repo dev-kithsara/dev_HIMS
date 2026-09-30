@@ -1,93 +1,13 @@
-import React from 'react';
-import { Inbox } from 'lucide-react';
-
-// ── KAIROS Clinical Palette ────────────────────────────────────────────────
-const PANEL = '#0E1720';
-const TEXT = '#EEF7FC';
-const TEAL = '#45A79A';
-const MUTED = '#8FA8B4';
-const BORDER = '#253642';
-const DANGER = '#EF4444';
-
-const STATS = [
-  { label: 'Total Incidents', value: 0, color: TEAL },
-  { label: 'Open', value: 0, color: DANGER },
-  { label: 'Investigating', value: 0, color: '#F59E0B' },
-  { label: 'Closed', value: 0, color: '#22C55E' },
-];
-
-const MyIncidentsPage: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: PANEL, borderColor: BORDER }}
-      >
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: TEXT }}>
-          My Incidents
-        </h1>
-        <p className="text-sm mt-1" style={{ color: MUTED }}>
-          View and track the incidents you have reported.
-        </p>
-      </div>
-
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {STATS.map((stat) => (
-          <div
-            key={stat.label}
-            className="p-6 rounded-xl border"
-            style={{ backgroundColor: PANEL, borderColor: BORDER }}
-          >
-            <p
-              className="text-xs font-semibold uppercase tracking-wider"
-              style={{ color: MUTED }}
-            >
-              {stat.label}
-            </p>
-            <h2 className="mt-2 text-3xl font-bold" style={{ color: stat.color }}>
-              {stat.value}
-            </h2>
-          </div>
-        ))}
-      </div>
-
-      {/* Incidents Section */}
-      <div
-        className="rounded-xl border"
-        style={{ backgroundColor: PANEL, borderColor: BORDER }}
-      >
-        <div className="p-6 border-b" style={{ borderColor: BORDER }}>
-          <h2 className="text-lg font-semibold" style={{ color: TEXT }}>
-            Reported Incidents
-          </h2>
-          <p className="mt-1 text-sm" style={{ color: MUTED }}>
-            Incidents submitted by you.
-          </p>
-        </div>
-
-        {/* Empty State */}
-        <div className="flex flex-col items-center justify-center p-12 text-center">
-          <div
-            className="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
-            style={{ backgroundColor: `${TEAL}1A`, color: TEAL }}
-          >
-            <Inbox className="w-8 h-8" />
-          </div>
-
-          <h3 className="text-lg font-semibold" style={{ color: TEXT }}>
-            No incidents found
-          </h3>
-
-          <p className="mt-2 max-w-md text-sm" style={{ color: MUTED }}>
-            You have not reported any incidents yet. Once you submit an
-            incident, it will appear here.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { PlusCircle } from 'lucide-react';
+import { staffApi } from '../api/staff.api';
+const TEAL='#0F8278',DARK='#07534E',BORDER='#BFE7E3',TEXT='#17313A',MUTED='#647B83';
+const MyIncidentsPage=()=>{const nav=useNavigate();const[search,setSearch]=useState('');const[status,setStatus]=useState('');const[severity,setSeverity]=useState('');const[category,setCategory]=useState('');const[from,setFrom]=useState('');const[to,setTo]=useState('');const params=Object.fromEntries(Object.entries({search,status,severity,category,from,to}).filter(([,v])=>v));const{data,isLoading,isError}=useQuery({queryKey:['staff-incidents',params],queryFn:()=>staffApi.list(params)});const{data:config}=useQuery({queryKey:['staff-config'],queryFn:staffApi.config});if(isLoading)return <div className="h-80 grid place-items-center font-bold" style={{color:TEAL}}>Loading your incident reports…</div>;return <div className="space-y-6 pb-8">
+  <header className="rounded-2xl p-7 text-white flex flex-col lg:flex-row lg:items-end justify-between gap-5" style={{background:`linear-gradient(135deg,${DARK},${TEAL})`}}><div><div className="text-xs uppercase tracking-[.2em] font-bold opacity-75">Private reporter workspace</div><h1 className="text-3xl font-extrabold mt-2">My Incidents</h1><p className="mt-1 opacity-85">Track only the reports submitted from your account and respond to revision requests.</p></div><button onClick={()=>nav('/submit-incident')} className="rounded-xl bg-white px-4 py-3 font-bold flex items-center gap-2" style={{color:DARK}}><PlusCircle size={18}/> Report an incident</button></header>
+  <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">{[['Total',data?.summary.total,'#0F8278'],['Awaiting Triage',data?.summary.open,'#2563EB'],['In Progress',data?.summary.inProgress,'#D97706'],['Rejected',data?.summary.rejected,'#DC2626'],['Closed',data?.summary.closed,'#16A34A']].map(([k,v,c])=><div key={k} className="rounded-xl bg-white p-4" style={{border:`1px solid ${BORDER}`}}><div className="text-xs uppercase font-bold" style={{color:MUTED}}>{k}</div><div className="text-3xl font-extrabold mt-1" style={{color:String(c)}}>{v??0}</div></div>)}</div>
+  <section className="rounded-2xl bg-white p-4 grid md:grid-cols-2 xl:grid-cols-6 gap-3" style={{border:`1px solid ${BORDER}`}}><input aria-label="Search my incidents" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search ID, title, text or location" className="xl:col-span-2 rounded-xl border border-teal-200 px-3 py-2.5 outline-teal-600"/><select aria-label="Filter status" value={status} onChange={e=>setStatus(e.target.value)} className="rounded-xl border border-teal-200 px-3"><option value="">All statuses</option>{['OPEN','ACCEPTED','REJECTED','INVESTIGATING','PENDING_ACTION','UNDER_REVIEW','CLOSED'].map(x=><option key={x}>{x}</option>)}</select><select aria-label="Filter severity" value={severity} onChange={e=>setSeverity(e.target.value)} className="rounded-xl border border-teal-200 px-3"><option value="">All severities</option>{['LOW','MEDIUM','HIGH','CRITICAL'].map(x=><option key={x}>{x}</option>)}</select><select aria-label="Filter category" value={category} onChange={e=>setCategory(e.target.value)} className="rounded-xl border border-teal-200 px-3"><option value="">All categories</option>{Object.keys(config?.categories??{}).map(x=><option key={x}>{x}</option>)}</select><div className="grid grid-cols-2 gap-1"><input aria-label="From date" type="date" value={from} onChange={e=>setFrom(e.target.value)} className="min-w-0 rounded-lg border border-teal-200 px-1"/><input aria-label="To date" type="date" value={to} onChange={e=>setTo(e.target.value)} className="min-w-0 rounded-lg border border-teal-200 px-1"/></div></section>
+  <section className="rounded-2xl bg-white overflow-hidden" style={{border:`1px solid ${BORDER}`}}><div className="p-5 border-b border-teal-100"><h2 className="font-extrabold" style={{color:TEXT}}>Owned Incident Register</h2><p className="text-sm" style={{color:MUTED}}>Counts and cards come from an authenticated own-incidents API.</p></div>{isError?<div className="p-12 text-center text-red-600">Unable to load your incident reports.</div>:!data?.items.length?<div className="p-16 text-center text-slate-500">No reports match these filters.</div>:<div className="divide-y divide-teal-100">{data.items.map(item=><button key={item.id} onClick={()=>nav(`/my-incidents/${item.id}`)} className="w-full text-left p-5 hover:bg-teal-50 grid lg:grid-cols-[1fr_auto] gap-4"><div><div className="flex flex-wrap items-center gap-2"><b style={{color:TEXT}}>{item.referenceId} • {item.title}</b><span className="rounded-md bg-teal-100 px-2 py-1 text-xs font-bold text-teal-800">{item.status.replaceAll('_',' ')}</span>{item.managerDecisionType==='REQUEST_REVISION'&&<span className="rounded-md bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">REVISION REQUESTED</span>}</div><p className="text-sm mt-2" style={{color:MUTED}}>{item.category} / {item.subcategory} • {item.location} • {item.department.name}</p><p className="text-xs mt-2 text-slate-500">Occurred {new Date(item.occurrenceAt).toLocaleString()} • Reported {new Date(item.reportedAt).toLocaleString()} • {item._count?.attachments??0} evidence file(s)</p></div><div className="lg:text-right"><b style={{color:item.severity==='CRITICAL'?'#DC2626':TEAL}}>{item.severity}</b><p className="text-xs mt-1 text-slate-500">Updated {new Date(item.updatedAt).toLocaleDateString()}</p></div></button>)}</div>}</section>
+ </div>};
 export default MyIncidentsPage;

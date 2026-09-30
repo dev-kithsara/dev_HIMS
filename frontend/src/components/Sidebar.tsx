@@ -92,7 +92,7 @@ export const Sidebar: React.FC = () => {
           },
           {
             name: 'Report Incident',
-            path: '/report',
+            path: '/submit-incident',
             icon: (
               <path
                 strokeLinecap="round"
