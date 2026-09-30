@@ -4,6 +4,7 @@ import { catchAsync } from '../../utils/catchAsync';
 import { managerService, ManagerActor } from './manager.service';
 import {
   actionItemSchema,
+  actionReviewSchema,
   assignInvestigatorSchema,
   closeIncidentSchema,
   controlAssessmentSchema,
@@ -94,6 +95,11 @@ export const createAction = catchAsync(async (req: Request, res: Response) => {
 export const updateAction = catchAsync(async (req: Request, res: Response) => {
   const data = await managerService.updateAction(idSchema.parse(req.params.id), idSchema.parse(req.params.actionId), updateActionItemSchema.parse(req.body), actorFrom(req));
   res.json({ success: true, message: 'Action item updated and audited.', data });
+});
+
+export const reviewAction = catchAsync(async (req: Request, res: Response) => {
+  const data = await managerService.reviewAction(idSchema.parse(req.params.id), idSchema.parse(req.params.actionId), actionReviewSchema.parse(req.body), actorFrom(req));
+  res.json({ success: true, message: 'Action review saved and audited.', data });
 });
 
 export const addControl = catchAsync(async (req: Request, res: Response) => {

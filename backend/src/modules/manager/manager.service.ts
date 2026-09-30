@@ -208,7 +208,11 @@ export class ManagerService {
     const owner = await prisma.user.findFirst({ where: { id: input.ownerId, departmentId: incident.departmentId, role: 'ACTION_OWNER', isActive: true } });
     if (!owner) throw new AppError('Select an active Action Owner from your department.', 400);
     if (input.dueDate <= new Date()) throw new AppError('Action due date must be in the future.', 400);
-    const action = await prisma.correctiveActionItem.create({ data: { incidentId: id, ...input } });
+    const action = await prisma.$transaction(async (tx) => {
+      const created = await tx.correctiveActionItem.create({ data: { incidentId: id, ...input } });
+      await tx.actionHistory.create({ data: { actionId: created.id, actorId: actor.id, actorRole: actor.role, eventType: 'ACTION_ASSIGNED', toStatus: created.status, note: `Assigned to ${owner.name}`, metadata: { type: created.type, priority: created.priority, dueDate: created.dueDate } } });
+      return created;
+    });
     if (!incident.actionOwnerId) await prisma.incident.update({ where: { id }, data: { actionOwnerId: owner.id } });
     await this.audit(actor, 'CREATE_ACTION_ITEM', id, undefined, action);
     return action;
@@ -223,8 +227,29 @@ export class ManagerService {
       if (!owner) throw new AppError('Select an active Action Owner from your department.', 400);
     }
     const { reason, ...changes } = input;
-    const updated = await prisma.correctiveActionItem.update({ where: { id: actionId }, data: { ...changes, completedAt: changes.status === 'COMPLETED' ? new Date() : changes.status ? null : undefined, escalationReason: reason } });
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.correctiveActionItem.update({ where: { id: actionId }, data: { ...changes, completedAt: changes.status === 'COMPLETED' ? new Date() : changes.status ? null : undefined, escalationReason: reason } });
+      await tx.actionHistory.create({ data: { actionId, actorId: actor.id, actorRole: actor.role, eventType: 'MANAGER_ACTION_UPDATE', fromStatus: current.status, toStatus: result.status, note: reason, metadata: changes } });
+      return result;
+    });
     await this.audit(actor, 'UPDATE_ACTION_ITEM', id, current, updated, { reason });
+    return updated;
+  }
+
+  async reviewAction(id: number, actionId: number, input: { outcome: 'RETURN' | 'VERIFY'; comment: string; effectiveness?: any; effectivenessScore?: number }, actor: ManagerActor) {
+    const incident = await this.incidentForManager(id, actor);
+    const current = await prisma.correctiveActionItem.findFirst({ where: { id: actionId, incidentId: id } });
+    if (!current) throw new AppError('Action item not found.', 404);
+    if (input.outcome === 'VERIFY' && (current.status !== 'COMPLETED' || !current.verificationNotes)) throw new AppError('The owner must complete the action with verification notes first.', 409);
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.correctiveActionItem.update({ where: { id: actionId }, data: input.outcome === 'RETURN'
+        ? { status: 'IN_PROGRESS', reviewStatus: 'RETURNED_FOR_REVISION', managerReviewComment: input.comment, returnedAt: new Date(), completedAt: null }
+        : { reviewStatus: 'VERIFIED', managerReviewComment: input.comment, verifiedAt: new Date(), effectiveness: input.effectiveness, effectivenessScore: input.effectivenessScore } });
+      await tx.actionHistory.create({ data: { actionId, actorId: actor.id, actorRole: actor.role, eventType: input.outcome === 'RETURN' ? 'RETURNED_FOR_REVISION' : 'MANAGER_VERIFIED', fromStatus: current.status, toStatus: result.status, note: input.comment, metadata: { effectiveness: input.effectiveness, effectivenessScore: input.effectivenessScore } } });
+      await tx.actionNotification.upsert({ where: { actionId_userId_type: { actionId, userId: current.ownerId, type: input.outcome === 'RETURN' ? 'RETURNED' : 'VERIFIED' } }, update: { title: input.outcome === 'RETURN' ? 'Action returned' : 'Action verified', message: input.comment, readAt: null }, create: { actionId, userId: current.ownerId, type: input.outcome === 'RETURN' ? 'RETURNED' : 'VERIFIED', title: input.outcome === 'RETURN' ? 'Action returned' : 'Action verified', message: input.comment } });
+      return result;
+    });
+    await this.audit(actor, input.outcome === 'RETURN' ? 'RETURN_ACTION' : 'VERIFY_ACTION', incident.id, current, updated, input);
     return updated;
   }
 
@@ -241,6 +266,7 @@ export class ManagerService {
 
   async addReview(id: number, input: any, actor: ManagerActor) {
     const incident = await this.incidentForManager(id, actor);
+    if (input.outcome === 'APPROVED' && (incident.actionItems.length === 0 || incident.actionItems.some((item) => item.status !== 'COMPLETED' || item.reviewStatus !== 'VERIFIED'))) throw new AppError('All required actions must be completed and Manager-verified before approval.', 409);
     const review = await prisma.managementReview.create({ data: { incidentId: id, reviewerId: actor.id, ...input } });
     if (input.outcome === 'APPROVED') await prisma.incident.update({ where: { id }, data: { status: 'UNDER_REVIEW' } });
     await this.audit(actor, 'MANAGEMENT_REVIEW', id, undefined, review);
@@ -256,8 +282,8 @@ export class ManagerService {
 
   async close(id: number, closureSummary: string, actor: ManagerActor) {
     const incident = await this.incidentForManager(id, actor);
-    const openActions = incident.actionItems.filter((item) => !['COMPLETED', 'CANCELLED'].includes(item.status));
-    if (incident.actionItems.length === 0 || openActions.length > 0) throw new AppError('All corrective and preventive actions must be completed.', 409);
+    const openActions = incident.actionItems.filter((item) => item.status !== 'COMPLETED' || item.reviewStatus !== 'VERIFIED');
+    if (incident.actionItems.length === 0 || openActions.length > 0) throw new AppError('All corrective and preventive actions must be completed and Manager-verified.', 409);
     if (incident.controls.length === 0 || incident.controls.some((control) => control.status !== 'VERIFIED')) throw new AppError('At least one control must be assessed and all controls verified.', 409);
     if (incident.reviews[0]?.outcome !== 'APPROVED') throw new AppError('An approved management review is required before closure.', 409);
     const updated = await prisma.incident.update({ where: { id }, data: { status: 'CLOSED', closureSummary, closedAt: new Date() } });

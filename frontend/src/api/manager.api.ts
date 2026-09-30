@@ -13,9 +13,9 @@ export interface ManagerDashboardData {
 }
 
 export interface ManagerAction {
-  id: number; title: string; description: string; type: 'CORRECTIVE' | 'PREVENTIVE';
+  id: number; title: string; description: string; type: 'IMMEDIATE' | 'CORRECTIVE' | 'PREVENTIVE';
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-  dueDate: string; ownerId: number; owner?: User; completedAt?: string;
+  dueDate: string; ownerId: number; owner?: User; completedAt?: string; reviewStatus?:string; verificationNotes?:string; managerReviewComment?:string; effectiveness?:string; effectivenessScore?:number;
 }
 
 export interface ManagerIncident extends Incident {
@@ -49,6 +49,7 @@ export const managerApi = {
   reviewInvestigation: (id: number, body: unknown) => apiClient.post(`/manager/incidents/${id}/investigation-review`, body),
   createAction: (id: number, body: unknown) => apiClient.post(`/manager/incidents/${id}/actions`, body),
   updateAction: (id: number, actionId: number, body: unknown) => apiClient.patch(`/manager/incidents/${id}/actions/${actionId}`, body),
+  reviewAction: (id: number, actionId: number, body: unknown) => apiClient.post(`/manager/incidents/${id}/actions/${actionId}/review`, body),
   addControl: (id: number, body: unknown) => apiClient.post(`/manager/incidents/${id}/controls`, body),
   addReview: (id: number, body: unknown) => apiClient.post(`/manager/incidents/${id}/reviews`, body),
   addLesson: (id: number, body: unknown) => apiClient.post(`/manager/incidents/${id}/lessons`, body),

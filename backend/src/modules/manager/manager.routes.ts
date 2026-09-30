@@ -3,7 +3,7 @@ import { authenticate, authorizeRoles } from '../../middlewares/auth.middleware'
 import {
   addControl, addLesson, addReview, assignInvestigator, closeIncident, createAction, decideIncident,
   editIncident, exportIncidents, getCandidates, getDashboard, getIncident, getRecommendations,
-  listIncidents, overrideRisk, reopenIncident, reviewInvestigation, updateAction,
+  listIncidents, overrideRisk, reopenIncident, reviewAction, reviewInvestigation, updateAction,
 } from './manager.controller';
 
 const router = Router();
@@ -21,6 +21,7 @@ router.post('/incidents/:id/assign-investigator', assignInvestigator);
 router.post('/incidents/:id/investigation-review', reviewInvestigation);
 router.post('/incidents/:id/actions', createAction);
 router.patch('/incidents/:id/actions/:actionId', updateAction);
+router.post('/incidents/:id/actions/:actionId/review', reviewAction);
 router.post('/incidents/:id/controls', addControl);
 router.post('/incidents/:id/reviews', addReview);
 router.post('/incidents/:id/lessons', addLesson);

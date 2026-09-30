@@ -59,6 +59,7 @@ enum InvestigationReviewStatus {
 }
 
 enum ActionType {
+  IMMEDIATE
   CORRECTIVE
   PREVENTIVE
 }
@@ -75,6 +76,28 @@ enum ActionItemStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum ActionReviewStatus {
+  ACTIVE
+  RETURNED_FOR_REVISION
+  COMPLETED_PENDING_VERIFICATION
+  VERIFIED
+}
+
+enum ActionEffectiveness {
+  NOT_ASSESSED
+  EFFECTIVE
+  PARTIALLY_EFFECTIVE
+  INEFFECTIVE
+}
+
+enum ActionNotificationType {
+  DUE_SOON
+  OVERDUE
+  ESCALATION
+  RETURNED
+  VERIFIED
 }
 
 enum ControlEffectiveness {
@@ -138,6 +161,9 @@ model User {
   managementReviews     ManagementReview[]    @relation("ReviewManager")
   ledInvestigations     Investigation[]       @relation("LeadInvestigator")
   investigationTeams    InvestigationTeamMember[]
+  actionHistory         ActionHistory[]
+  actionNotifications   ActionNotification[]
+  actionAiFeedback      ActionAiFeedback[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -350,13 +376,89 @@ model CorrectiveActionItem {
   owner            User             @relation("ActionItemOwner", fields: [ownerId], references: [id])
   dueDate          DateTime
   escalationReason String?
+  progressNote     String?
+  verificationNotes String?
+  effectiveness   ActionEffectiveness @default(NOT_ASSESSED)
+  reviewStatus     ActionReviewStatus  @default(ACTIVE)
+  managerReviewComment String?
+  returnedAt       DateTime?
+  verifiedAt       DateTime?
+  effectivenessScore Float?
+  completionRiskScore Float?
+  riskExplanation Json?
   completedAt      DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
+  evidence         ActionEvidence[]
+  history          ActionHistory[]
+  notifications    ActionNotification[]
+  aiFeedback       ActionAiFeedback[]
 
   @@index([incidentId])
   @@index([ownerId, status])
   @@index([dueDate, status])
+}
+
+model ActionEvidence {
+  id         Int                  @id @default(autoincrement())
+  actionId   Int
+  action     CorrectiveActionItem @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  fileName   String
+  filePath   String
+  fileType   String
+  fileSize   Int
+  uploadedAt DateTime             @default(now())
+
+  @@index([actionId, uploadedAt])
+}
+
+model ActionHistory {
+  id         Int                  @id @default(autoincrement())
+  actionId   Int
+  action     CorrectiveActionItem @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  actorId    Int?
+  actor      User?                @relation(fields: [actorId], references: [id])
+  actorRole  Role?
+  eventType  String
+  fromStatus ActionItemStatus?
+  toStatus   ActionItemStatus?
+  note       String?
+  metadata   Json?
+  createdAt  DateTime             @default(now())
+
+  @@index([actionId, createdAt])
+}
+
+model ActionNotification {
+  id        Int                    @id @default(autoincrement())
+  actionId  Int
+  action    CorrectiveActionItem   @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      ActionNotificationType
+  title     String
+  message   String
+  readAt    DateTime?
+  createdAt DateTime               @default(now())
+
+  @@unique([actionId, userId, type])
+  @@index([userId, readAt, createdAt])
+}
+
+model ActionAiFeedback {
+  id           Int                  @id @default(autoincrement())
+  actionId     Int
+  action       CorrectiveActionItem @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feature      String
+  resultKey    String
+  actionTaken  AiFeedbackAction
+  reason       String?
+  modelVersion String
+  createdAt    DateTime             @default(now())
+
+  @@index([actionId, feature])
 }
 
 model ControlAssessment {

@@ -1,243 +1,39 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  useIncident,
-  useSubmitCorrectiveAction,
-} from '../hooks/useIncidents';
 import toast from 'react-hot-toast';
+import { actionOwnerApi, type ActionStatus } from '../api/actionOwner.api';
 
-// ── KAIROS Blue Palette ───────────────────────────────────────────────────
-const NAVY    = '#1E2B5E';
-const ROYAL   = '#2952C4';
-const SURFACE = '#F7F8FA';
-const BG_PAGE = '#EDEEF3';
-const BORDER  = '#D8DCE8';
-const TEXT    = '#1A2447';
-const MUTED   = '#6B7494';
-const FAINT   = '#9BA4BC';
-const GREEN   = '#16A34A';
-const AMBER   = '#D97706';
+const ORANGE='#E77900',DARK='#7C3D00',BORDER='#FED7AA',TEXT='#1F2937',MUTED='#6B7280';
+const field='w-full rounded-xl border border-orange-200 bg-white px-3 py-2.5 text-sm outline-orange-500';
+const Panel=({title,subtitle,children}:{title:string;subtitle?:string;children:React.ReactNode})=><section className="rounded-2xl bg-white p-5" style={{border:`1.5px solid ${BORDER}`}}><h2 className="text-lg font-extrabold" style={{color:TEXT}}>{title}</h2>{subtitle&&<p className="text-xs mt-1 mb-4" style={{color:MUTED}}>{subtitle}</p>}{children}</section>;
+const Btn=({children,onClick,disabled=false,tone='orange'}:{children:React.ReactNode;onClick:()=>void;disabled?:boolean;tone?:'orange'|'green'|'red'})=><button type="button" onClick={onClick} disabled={disabled} className="rounded-xl px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40" style={{background:tone==='green'?'#15803D':tone==='red'?'#DC2626':ORANGE}}>{children}</button>;
 
-const ActionOwnerIncidentDetails: React.FC = () => {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-
-  const incidentId = Number(id);
-
-  const {
-    data: incident,
-    isLoading,
-    isError,
-    error,
-  } = useIncident(incidentId);
-
-  const submitCorrectiveAction = useSubmitCorrectiveAction();
-
-  const [correctiveAction, setCorrectiveAction] = useState('');
-
-  const handleSubmit = async () => {
-    if (!incident) return;
-
-    if (correctiveAction.trim().length < 20) {
-      toast.error('Corrective action must be at least 20 characters long.');
-      return;
-    }
-
-    try {
-      await submitCorrectiveAction.mutateAsync({
-        incidentId: incident.id,
-        correctiveAction: correctiveAction.trim(),
-      });
-
-      toast.success('Corrective action submitted successfully.');
-      navigate('/action-owner');
-    } catch (err) {
-      toast.error(
-        err instanceof Error
-          ? err.message
-          : 'Failed to submit corrective action.'
-      );
-    }
-  };
-
-  // Loading
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div
-          className="animate-spin rounded-full h-11 w-11 border-[3px] border-t-transparent"
-          style={{ borderColor: `${ROYAL} transparent ${ROYAL} ${ROYAL}` }}
-        />
-      </div>
-    );
-  }
-
-  // Error
-  if (isError || !incident) {
-    return (
-      <div className="p-4 rounded-xl" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA' }}>
-        <h3 className="font-semibold text-red-600">Error loading incident</h3>
-        <p className="text-sm mt-1 text-red-500">
-          {error instanceof Error ? error.message : 'Incident not found.'}
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-5">
-      <div className="max-w-5xl mx-auto space-y-5">
-
-        {/* Header */}
-        <div
-          className="p-6 rounded-2xl"
-          style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, boxShadow: '0 1px 6px rgba(17,17,132,0.06)' }}
-        >
-          <button
-            type="button"
-            onClick={() => navigate('/action-owner')}
-            className="text-sm mb-4 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-            style={{ color: ROYAL }}
-          >
-            &larr; Back to Action Owner Dashboard
-          </button>
-
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: FAINT }}>
-                Incident #{incident.id}
-              </p>
-              <h1 className="text-2xl font-bold mt-1" style={{ color: TEXT }}>
-                {incident.title}
-              </h1>
-            </div>
-
-            <span
-              className="px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider w-fit"
-              style={{ backgroundColor: '#EBF0FA', color: NAVY, border: '1px solid #C0CBE0' }}
-            >
-              {incident.status.replaceAll('_', ' ')}
-            </span>
-          </div>
-        </div>
-
-        {/* Incident Details */}
-        <div
-          className="p-6 rounded-2xl"
-          style={{ backgroundColor: SURFACE, border: `1.5px solid ${BORDER}`, boxShadow: '0 1px 6px rgba(17,17,132,0.06)' }}
-        >
-          <h2 className="text-base font-bold mb-5" style={{ color: TEXT }}>Incident Details</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              { label: 'Severity', value: incident.severity },
-              { label: 'Category', value: incident.category },
-              { label: 'Location', value: incident.location },
-              { label: 'Reporter', value: incident.reporter?.name || 'Not available' },
-            ].map(({ label, value }) => (
-              <div key={label} className="p-4 rounded-xl" style={{ backgroundColor: BG_PAGE, border: `1px solid ${BORDER}` }}>
-                <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: FAINT }}>{label}</p>
-                <p className="text-sm font-semibold" style={{ color: TEXT }}>{value}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 p-4 rounded-xl" style={{ backgroundColor: BG_PAGE, border: `1px solid ${BORDER}` }}>
-            <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: ROYAL }}>
-              Incident Description
-            </p>
-            <p className="text-sm leading-relaxed" style={{ color: MUTED }}>
-              {incident.description}
-            </p>
-          </div>
-        </div>
-
-        {/* Investigator Findings */}
-        <div
-          className="p-6 rounded-2xl"
-          style={{ backgroundColor: SURFACE, border: `1.5px solid ${BORDER}`, boxShadow: '0 1px 6px rgba(17,17,132,0.06)' }}
-        >
-          <h2 className="text-base font-bold mb-5" style={{ color: TEXT }}>Investigator Findings</h2>
-
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl" style={{ backgroundColor: BG_PAGE, border: `1px solid ${BORDER}` }}>
-              <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: FAINT }}>Root Cause Category</p>
-              <p className="text-sm font-semibold" style={{ color: TEXT }}>{incident.rootCauseCategory || 'Not provided'}</p>
-            </div>
-
-            <div className="p-4 rounded-xl" style={{ backgroundColor: BG_PAGE, border: `1px solid ${BORDER}` }}>
-              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: ROYAL }}>Root Cause Findings</p>
-              <p className="text-sm leading-relaxed" style={{ color: MUTED }}>
-                {incident.rootCause || 'No investigator findings available.'}
-              </p>
-            </div>
-
-            {incident.investigator && (
-              <div className="p-4 rounded-xl" style={{ backgroundColor: '#F5F3FF', border: '1px solid #DDD6FE' }}>
-                <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: '#7C3AED' }}>Investigator</p>
-                <p className="text-sm font-semibold" style={{ color: TEXT }}>{incident.investigator.name}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Corrective Action */}
-        <div
-          className="p-6 rounded-2xl"
-          style={{ backgroundColor: SURFACE, border: `1.5px solid ${BORDER}`, boxShadow: '0 1px 6px rgba(17,17,132,0.06)' }}
-        >
-          <h2 className="text-base font-bold" style={{ color: TEXT }}>Corrective Action</h2>
-          <label htmlFor="action-owner-corrective-action" className="block text-sm mt-1 mb-4" style={{ color: MUTED }}>
-            Describe the corrective action that will be taken to prevent this incident from happening again.
-          </label>
-
-          <textarea
-            id="action-owner-corrective-action"
-            value={correctiveAction}
-            onChange={(e) => setCorrectiveAction(e.target.value)}
-            placeholder="Enter corrective action details..."
-            rows={7}
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none transition-all"
-            style={{ backgroundColor: BG_PAGE, border: `1.5px solid ${BORDER}`, color: TEXT }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = ROYAL; e.currentTarget.style.boxShadow = '0 0 0 3px #EBF0FA'; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.boxShadow = 'none'; }}
-          />
-
-          <div className="flex items-center justify-between mt-2">
-            <p className="text-xs" style={{ color: FAINT }}>Minimum 20 characters</p>
-            <p
-              className="text-xs font-semibold"
-              style={{ color: correctiveAction.trim().length >= 20 ? GREEN : AMBER }}
-            >
-              {correctiveAction.trim().length} characters
-            </p>
-          </div>
-
-          <div className="flex gap-3 mt-5">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitCorrectiveAction.isPending || correctiveAction.trim().length < 20}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 text-white cursor-pointer"
-              style={{ backgroundColor: NAVY, boxShadow: '0 2px 8px rgba(17,17,132,0.20)' }}
-            >
-              {submitCorrectiveAction.isPending ? 'Submitting...' : 'Submit Corrective Action'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate('/action-owner')}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
-              style={{ backgroundColor: BG_PAGE, color: MUTED, border: `1px solid ${BORDER}` }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
+const ActionOwnerIncidentDetails=()=>{
+  const id=Number(useParams().id); const nav=useNavigate(); const qc=useQueryClient();
+  const {data:item,isLoading}=useQuery({queryKey:['action-owner-detail',id],queryFn:()=>actionOwnerApi.detail(id),enabled:Number.isInteger(id)});
+  const {data:ai}=useQuery({queryKey:['action-owner-ai',id],queryFn:()=>actionOwnerApi.insights(id),enabled:!!item});
+  const [status,setStatus]=useState<ActionStatus>('OPEN'); const [note,setNote]=useState(''); const [verification,setVerification]=useState(''); const [file,setFile]=useState<File>();
+  useEffect(()=>{if(item){setStatus(item.status);setNote(item.progressNote??'');setVerification(item.verificationNotes??'')}},[item]);
+  const mutation=useMutation({mutationFn:(fn:()=>Promise<unknown>)=>fn(),onSuccess:async()=>{toast.success('Saved and audited');await Promise.all([qc.invalidateQueries({queryKey:['action-owner-detail',id]}),qc.invalidateQueries({queryKey:['action-owner-dashboard']}),qc.invalidateQueries({queryKey:['action-owner-ai',id]})])}}); const run=(fn:()=>Promise<unknown>)=>mutation.mutate(fn);
+  if(isLoading)return <div className="h-80 grid place-items-center font-bold text-orange-700">Loading secure action workspace…</div>;
+  if(!item)return <div className="p-8 text-center text-red-600">Action not found or not assigned to you.</div>;
+  const locked=item.reviewStatus==='VERIFIED'; const completing=status==='COMPLETED';
+  const save=()=>run(()=>item.reviewStatus==='RETURNED_FOR_REVISION'&&completing?actionOwnerApi.resubmit(id,{progressNote:note,verificationNotes:verification}):actionOwnerApi.progress(id,{status,progressNote:note,verificationNotes:verification||undefined}));
+  const feedback=(feature:'SIMILAR_ACTIONS'|'RECOMMENDATIONS'|'COMPLETION_RISK',resultKey:string,action:'ACCEPTED'|'DISMISSED')=>run(()=>actionOwnerApi.feedback(id,{feature,resultKey,action,modelVersion:ai?.modelVersion??'local-action-similarity-v1.0'}));
+  const viewEvidence=async(evidenceId:number)=>{const response=await actionOwnerApi.viewEvidence(id,evidenceId);const url=URL.createObjectURL(response.data);window.open(url,'_blank','noopener,noreferrer');setTimeout(()=>URL.revokeObjectURL(url),60000)};
+  return <div className="space-y-6 pb-8">
+    <button onClick={()=>nav('/action-owner')} className="text-sm font-bold text-orange-700">← Back to assigned actions</button>
+    <header className="rounded-2xl p-6 text-white" style={{background:`linear-gradient(135deg,${DARK},${ORANGE})`}}><div className="flex flex-wrap justify-between gap-4"><div><div className="text-xs uppercase tracking-[.2em] font-bold opacity-75">Action #{item.id} • Incident #{item.incident.id}</div><h1 className="text-3xl font-extrabold mt-2">{item.title}</h1><p className="mt-2 opacity-85">{item.description}</p></div><div className="text-right"><span className="rounded-full bg-white/15 px-3 py-1 text-sm font-bold">{item.status==='OPEN'?'NOT STARTED':item.status.replaceAll('_',' ')}</span><div className="text-xs mt-2">{item.type} • {item.priority} priority</div></div></div></header>
+    {item.reviewStatus==='RETURNED_FOR_REVISION'&&<div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900"><b>Manager returned this action for revision.</b><p className="text-sm mt-1">{item.managerReviewComment}</p></div>}
+    {locked&&<div className="rounded-xl border border-green-300 bg-green-50 p-4 text-green-900"><b>Manager verified this action.</b><p className="text-sm mt-1">{item.managerReviewComment} • Effectiveness: {item.effectiveness} {item.effectivenessScore!=null&&`(${item.effectivenessScore}%)`}</p></div>}
+    <div className="grid md:grid-cols-4 gap-4">{[['Incident',`#${item.incident.id} ${item.incident.title}`],['Department',item.incident.department.name],['Due date',new Date(item.dueDate).toLocaleDateString()],['Due state',item.overdue?'OVERDUE':`${item.dueInDays} day(s) remaining`]].map(([k,v])=><div key={k} className="rounded-xl bg-white p-4" style={{border:`1px solid ${BORDER}`}}><div className="text-xs uppercase font-bold" style={{color:MUTED}}>{k}</div><b>{v}</b></div>)}</div>
+    <div className="grid xl:grid-cols-[2fr_1fr] gap-6"><Panel title="Progress Update" subtitle="Use Not Started, In Progress, or Completed. Completion requires verification notes."><div className="grid md:grid-cols-3 gap-3"><select disabled={locked} className={field} value={status} onChange={e=>setStatus(e.target.value as ActionStatus)}><option value="OPEN">Not Started</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select><textarea disabled={locked} className={`${field} md:col-span-2 min-h-24`} placeholder="Progress note (required)" value={note} onChange={e=>setNote(e.target.value)}/>{completing&&<textarea disabled={locked} className={`${field} md:col-span-3 min-h-24`} placeholder="Verification notes: explain completion evidence and expected outcome" value={verification} onChange={e=>setVerification(e.target.value)}/>}</div><div className="mt-3"><Btn disabled={locked||mutation.isPending||note.trim().length<5||(completing&&verification.trim().length<10)} tone={completing?'green':'orange'} onClick={save}>{item.reviewStatus==='RETURNED_FOR_REVISION'&&completing?'Resubmit for verification':'Save progress'}</Btn></div></Panel>
+      <Panel title="Due-date Risk" subtitle={`${item.completionRisk.modelVersion} • no automatic status changes`}><div className="text-4xl font-extrabold" style={{color:item.completionRisk.level==='HIGH'?'#DC2626':ORANGE}}>{item.completionRisk.score}%</div><b>{item.completionRisk.level} completion risk</b><ul className="mt-3 text-sm text-slate-600 list-disc pl-5">{item.completionRisk.factors.map(x=><li key={x}>{x}</li>)}</ul><div className="flex gap-3 mt-4"><button onClick={()=>feedback('COMPLETION_RISK',String(id),'ACCEPTED')} className="text-xs font-bold text-green-700">Accurate</button><button onClick={()=>feedback('COMPLETION_RISK',String(id),'DISMISSED')} className="text-xs font-bold text-red-700">Dismiss</button></div></Panel></div>
+    <div className="grid xl:grid-cols-2 gap-6"><Panel title="Secure Evidence" subtitle="JPG, PNG, or PDF up to 5MB; access is assignment-authorized"><div className="flex gap-2"><input disabled={locked} type="file" accept=".jpg,.jpeg,.png,.pdf" className={field} onChange={e=>setFile(e.target.files?.[0])}/><Btn disabled={locked||!file||mutation.isPending} onClick={()=>file&&run(()=>actionOwnerApi.evidence(id,file))}>Upload</Btn></div><div className="space-y-2 mt-4">{item.evidence?.map(x=><button key={x.id} onClick={()=>viewEvidence(x.id)} className="w-full text-left rounded-xl bg-orange-50 p-3"><b>{x.fileName}</b><span className="text-xs ml-2 text-slate-500">{Math.ceil(x.fileSize/1024)} KB • {new Date(x.uploadedAt).toLocaleString()}</span></button>)}</div></Panel>
+      <Panel title="Action History & Audit Timeline" subtitle="Progress, evidence, return, resubmission, and verification events"><div className="space-y-3 max-h-72 overflow-auto">{item.history?.length?item.history.map(x=><div key={x.id} className="border-l-4 border-orange-400 pl-3"><b className="text-sm">{x.eventType.replaceAll('_',' ')}</b><p className="text-xs text-slate-500">{new Date(x.createdAt).toLocaleString()} • {x.actor?.name??'System'}</p>{x.note&&<p className="text-sm mt-1">{x.note}</p>}</div>):<p className="text-sm text-slate-500">No timeline entries yet.</p>}</div></Panel></div>
+    <div className="grid xl:grid-cols-2 gap-6"><Panel title="Similar Actions Analysis" subtitle={`${ai?.modelVersion??''} • authorized actions only`}><div className="space-y-2">{ai?.similarActions.length?ai.similarActions.map(x=><div key={x.id} className="rounded-xl bg-orange-50 p-3"><div className="flex justify-between"><b>#{x.id} {x.title}</b><b>{(x.similarityScore*100).toFixed(0)}%</b></div><p className="text-xs text-slate-600">Incident #{x.incident.id}: {x.incident.title} • {x.effectiveness}</p><div className="flex gap-3 mt-2"><button onClick={()=>feedback('SIMILAR_ACTIONS',String(x.id),'ACCEPTED')} className="text-xs font-bold text-green-700">Useful</button><button onClick={()=>feedback('SIMILAR_ACTIONS',String(x.id),'DISMISSED')} className="text-xs font-bold text-red-700">Dismiss</button></div></div>):<p className="text-sm text-slate-500">No authorized similar actions found.</p>}</div>{!!ai?.recurringLowEffectiveness.length&&<div className="mt-4 rounded-xl bg-red-50 border border-red-200 p-3"><b className="text-red-800">Recurring low-effectiveness warning</b><p className="text-xs mt-1">{ai.recurringLowEffectiveness.length} similar previous fix(es) had poor outcomes. Review before repeating.</p></div>}</Panel>
+      <Panel title="AI Recommendations" subtitle="Successful, Manager-verified actions with traceable source incidents"><div className="space-y-3">{ai?.recommendations.length?ai.recommendations.map(x=><div key={x.key} className="rounded-xl bg-green-50 p-3"><b>{x.title}</b><p className="text-sm mt-1">{x.description}</p><p className="text-xs text-slate-500 mt-1">Source incident #{x.sourceIncident.id} • {x.effectiveness} {x.effectivenessScore!=null&&`${x.effectivenessScore}%`}</p><div className="flex gap-3 mt-2"><button onClick={()=>feedback('RECOMMENDATIONS',x.key,'ACCEPTED')} className="text-xs font-bold text-green-700">Accept suggestion</button><button onClick={()=>feedback('RECOMMENDATIONS',x.key,'DISMISSED')} className="text-xs font-bold text-red-700">Dismiss</button></div></div>):<p className="text-sm text-slate-500">Recommendations appear after verified effective actions exist.</p>}</div></Panel></div>
+  </div>;
 };
-
 export default ActionOwnerIncidentDetails;

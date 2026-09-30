@@ -121,7 +121,7 @@ export const Sidebar: React.FC = () => {
       case 'ACTION_OWNER':
         return [
           {
-            name: 'Pending Actions',
+            name: 'My Actions',
             path: '/',
             icon: (
               <path

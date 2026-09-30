@@ -54,7 +54,7 @@ The system enforces a strict **role-based access control (RBAC)** model across f
 | Staff Incident Submission | ✅ Live    | Form with file uploads, Zod validation, JWT auth |
 | Department Manager Workflow | ✅ Live  | Department-scoped decisions, RCA review, CAPA, controls, closure and risk analytics |
 | Investigator Workspace    | ✅ Live    | Assigned-case drafts, teams, evidence, timeline, structured RCA and explainable AI |
-| Action Owner Workspace    | ✅ Live    | Corrective action tracking                       |
+| Action Owner Workspace    | ✅ Live    | Assignment-scoped action queue, progress, evidence, verification, alerts and explainable recommendations |
 | Analytics Dashboard       | ✅ Live    | Severity breakdown, status distribution charts   |
 | Admin Governance Workspace | ✅ Live   | Cross-department oversight, users, departments, audit and configuration |
 | Audit and Data Protection | ✅ Live    | Audited changes, secure evidence access, AI data masking |
@@ -149,7 +149,7 @@ backend/src/modules/
 └── users/               # Team and role management
 ```
 
-The application is still one deployable backend and one database, but its business capabilities are now isolated as modules. This preserves existing API behaviour while reducing coupling. See [Admin governance documentation](docs/10_ADMIN_GOVERNANCE.md), the [Department Manager workflow](docs/11_DEPARTMENT_MANAGER_WORKFLOW.md), and the [Investigator workspace](docs/12_INVESTIGATOR_WORKSPACE.md).
+The application is still one deployable backend and one database, but its business capabilities are now isolated as modules. This preserves existing API behaviour while reducing coupling. See [Admin governance documentation](docs/10_ADMIN_GOVERNANCE.md), the [Department Manager workflow](docs/11_DEPARTMENT_MANAGER_WORKFLOW.md), the [Investigator workspace](docs/12_INVESTIGATOR_WORKSPACE.md), and the [Action Owner workspace](docs/13_ACTION_OWNER_WORKSPACE.md).
 
 ### Role-Based Workflow
 
@@ -166,9 +166,9 @@ The application is still one deployable backend and one database, but its busine
               ↓ (only after approval)
 [Manager] → Create CAPA + Assign Action Owners
               ↓
-[Action Owner] → Complete Assigned Actions
+[Action Owner] → Update Progress + Evidence → Submit for Verification
               ↓
-[Manager] → Verify Controls → Management Review → Close ✅
+[Manager] → Verify/Return Actions → Verify Controls → Management Review → Close ✅
 ```
 
 ---

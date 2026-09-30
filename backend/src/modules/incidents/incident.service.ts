@@ -343,6 +343,11 @@ export class IncidentService {
       );
     }
 
+    const actions = await prisma.correctiveActionItem.findMany({ where: { incidentId } });
+    if (actions.length === 0 || actions.some((action) => action.status !== 'COMPLETED' || action.reviewStatus !== 'VERIFIED')) {
+      throw new AppError('All required actions must be completed and Manager-verified before incident review.', 409);
+    }
+
     const updated = await incidentRepository.reviewIncident(incidentId);
     await this.auditWorkflow(actor, 'REVIEW', incidentId, incident.departmentId, incident, updated);
     return updated;

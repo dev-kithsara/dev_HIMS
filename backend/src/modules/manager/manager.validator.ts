@@ -2,6 +2,7 @@ import {
   ActionItemStatus,
   ActionPriority,
   ActionType,
+  ActionEffectiveness,
   ControlEffectiveness,
   IncidentStatus,
   ReviewOutcome,
@@ -69,6 +70,17 @@ export const updateActionItemSchema = z.object({
   dueDate: z.coerce.date().optional(),
   reason: z.string().trim().min(10).max(1000),
 }).refine((value) => value.status || value.priority || value.ownerId || value.dueDate, 'A change is required');
+
+export const actionReviewSchema = z.object({
+  outcome: z.enum(['RETURN', 'VERIFY']),
+  comment: z.string().trim().min(10).max(2000),
+  effectiveness: z.nativeEnum(ActionEffectiveness).optional(),
+  effectivenessScore: z.coerce.number().min(0).max(100).optional(),
+}).superRefine((value, ctx) => {
+  if (value.outcome === 'VERIFY' && (!value.effectiveness || value.effectiveness === 'NOT_ASSESSED')) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['effectiveness'], message: 'Effectiveness is required when verifying an action.' });
+  }
+});
 
 export const controlAssessmentSchema = z.object({
   controlType: z.string().trim().min(3).max(200),
