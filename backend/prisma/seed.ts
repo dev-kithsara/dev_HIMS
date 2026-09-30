@@ -84,6 +84,9 @@ async function main() {
       category: 'FACILITY',
       location: 'Main Lobby',
       status: 'PENDING_ACTION',
+      investigationReviewStatus: 'APPROVED',
+      rootCause: 'A faulty detector and incomplete preventive maintenance caused repeated false alarms.',
+      rootCauseCategory: 'EQUIPMENT_FAILURE',
       departmentId: dept.id,
       reporterId: staff.id,
       investigatorId: investigator.id,
@@ -128,12 +131,24 @@ async function main() {
 
   // 6. Insert incidents into the database
   // We use a loop instead of createMany because Prisma createMany doesn't support 'upsert' easily
+  const createdIncidents = [];
   for (const inc of incidentsData) {
     // We use the title as a unique identifier for the seed script (assuming titles are unique here)
     // If you don't have a unique constraint on title, we just create them (might cause duplicates if run multiple times)
-    await prisma.incident.create({
+    const createdIncident = await prisma.incident.create({
       data: inc as any,
     });
+    createdIncidents.push(createdIncident);
+  }
+
+  const pendingActionIncident = createdIncidents.find((incident) => incident.title.startsWith('Fire Alarm Fault'))!;
+  const actionSeeds = [
+    { title: 'Replace faulty alarm detector', description: 'Replace and function-test the faulty lobby alarm detector.', type: 'IMMEDIATE', priority: 'HIGH', dueDate: new Date(Date.now() + 2 * 86400000) },
+    { title: 'Complete alarm preventive maintenance', description: 'Inspect every alarm point and document preventive maintenance results.', type: 'CORRECTIVE', priority: 'MEDIUM', dueDate: new Date(Date.now() + 7 * 86400000) },
+    { title: 'Introduce monthly alarm verification', description: 'Create a monthly verification checklist to prevent repeat detector failures.', type: 'PREVENTIVE', priority: 'MEDIUM', dueDate: new Date(Date.now() + 14 * 86400000) },
+  ];
+  for (const action of actionSeeds) {
+    await prisma.correctiveActionItem.create({ data: { ...action, incidentId: pendingActionIncident.id, ownerId: actionOwner.id } as any });
   }
 
   const configs = [
