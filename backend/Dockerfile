@@ -22,7 +22,7 @@ RUN npm config set fetch-retries 5 && \
 COPY . .
 
 # 7. Generate Prisma Client at BUILD TIME
-RUN npx prisma generate --no-hints
+RUN ./node_modules/.bin/prisma generate --no-hints
 
 # 8. Build the TypeScript code into JavaScript
 RUN npm run build
