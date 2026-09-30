@@ -8,12 +8,9 @@ export const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSignOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
 
-  const handleLogout = () => {
-    if (window.confirm('Are you sure you want to sign out?')) {
-      logout();
-    }
-  };
+  const handleLogout = () => setSignOutConfirmOpen(true);
 
   const getNavLinks = () => {
     const role = user?.role;
@@ -266,6 +263,27 @@ export const Sidebar: React.FC = () => {
       </div>
     </aside>
     {isMobileMenuOpen && <button type="button" aria-label="Close navigation" className="mobile-nav-backdrop fixed inset-0 z-40 hidden bg-slate-950/35" onClick={() => setMobileMenuOpen(false)} />}
+    {isSignOutConfirmOpen && (
+      <section
+        className="fixed right-4 top-4 z-[70] w-[calc(100vw-2rem)] max-w-sm rounded-2xl border border-[var(--k-border)] bg-white p-5 shadow-2xl motion-safe:animate-[slide-in_180ms_ease-out]"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="sign-out-title"
+        aria-describedby="sign-out-description"
+      >
+        <div className="flex items-start gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-lg font-bold text-[var(--k-royal)]" aria-hidden="true">↗</div>
+          <div>
+            <h2 id="sign-out-title" className="font-bold text-[var(--k-text-primary)]">Sign out?</h2>
+            <p id="sign-out-description" className="mt-1 text-sm leading-5 text-[var(--k-text-muted)]">Your current session will be closed on this device.</p>
+          </div>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={() => setSignOutConfirmOpen(false)} className="rounded-lg border border-[var(--k-border)] px-3.5 py-2 text-sm font-semibold text-[var(--k-text-body)] hover:bg-slate-50">Stay signed in</button>
+          <button type="button" onClick={logout} className="rounded-lg bg-[var(--k-navy)] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[var(--k-cobalt)]">Sign out</button>
+        </div>
+      </section>
+    )}
     </>
   );
 };

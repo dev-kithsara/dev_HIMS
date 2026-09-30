@@ -9,13 +9,9 @@ export const Navbar: React.FC = () => {
   const { user, logout } = useAuthContext();
   const navigate = useNavigate();
 
-  // 2. Handle Logout click
-  const handleLogout = () => {
-    // We can add a confirmation dialog if needed
-    if (window.confirm('Are you sure you want to logout?')) {
-      logout(); // This will clear localStorage and redirect to /login
-    }
-  };
+  // This legacy navbar is retained for older routes. MainLayout provides the
+  // application-wide confirmation panel before sign-out.
+  const handleLogout = () => logout();
 
   // 3. Render the Navbar UI
   return (

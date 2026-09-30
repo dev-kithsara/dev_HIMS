@@ -22,6 +22,7 @@ export const TeamManagement: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'ALL' | 'INVESTIGATOR' | 'ACTION_OWNER' | 'STAFF'>('ALL');
+  const [pendingRoleChange, setPendingRoleChange] = useState<{ userId: number; name: string; role: string } | null>(null);
 
   // Filter out ADMIN users (Managers manage only their department personnel)
   const users = useMemo(() => {
@@ -47,14 +48,13 @@ export const TeamManagement: React.FC = () => {
     });
   }, [users, searchTerm, activeTab]);
 
-  const handleRoleChange = (userId: number, newRole: string) => {
-    if (
-      window.confirm(
-        `Are you sure you want to change this staff member's role to ${newRole.replace('_', ' ')}?`
-      )
-    ) {
-      changeRoleMutation.mutate({ userId, newRole });
-    }
+  const handleRoleChange = (userId: number, name: string, role: string) => setPendingRoleChange({ userId, name, role });
+  const confirmRoleChange = () => {
+    if (!pendingRoleChange) return;
+    changeRoleMutation.mutate(
+      { userId: pendingRoleChange.userId, newRole: pendingRoleChange.role },
+      { onSuccess: () => setPendingRoleChange(null) }
+    );
   };
 
   const getAvatarColor = (role?: string) => {
@@ -388,7 +388,7 @@ export const TeamManagement: React.FC = () => {
                           <div className="inline-flex items-center gap-2">
                             <select
                               value={user.role || 'STAFF'}
-                              onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                              onChange={(e) => handleRoleChange(user.id, user.name, e.target.value)}
                               disabled={changeRoleMutation.isPending}
                               className="px-3.5 py-2 rounded-xl text-sm font-semibold outline-none cursor-pointer disabled:opacity-50 transition-all"
                               style={{
@@ -416,6 +416,16 @@ export const TeamManagement: React.FC = () => {
           </table>
         </div>
       </div>
+      {pendingRoleChange && (
+        <section className="fixed right-4 top-4 z-[70] w-[calc(100vw-2rem)] max-w-sm rounded-2xl border border-[var(--k-border)] bg-white p-5 shadow-2xl" role="alertdialog" aria-modal="true" aria-labelledby="role-change-title">
+          <h2 id="role-change-title" className="font-bold" style={{ color: TEXT }}>Confirm role change</h2>
+          <p className="mt-2 text-sm leading-5" style={{ color: MUTED }}>Change <strong>{pendingRoleChange.name}</strong> to <strong>{pendingRoleChange.role.replace('_', ' ')}</strong>?</p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" onClick={() => setPendingRoleChange(null)} className="rounded-lg border px-3.5 py-2 text-sm font-semibold" style={{ borderColor: BORDER, color: TEXT }}>Cancel</button>
+            <button type="button" onClick={confirmRoleChange} disabled={changeRoleMutation.isPending} className="rounded-lg px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: NAVY }}>Confirm change</button>
+          </div>
+        </section>
+      )}
     </div>
   );
 };
