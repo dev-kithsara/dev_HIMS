@@ -58,6 +58,8 @@
   --status-closed:    #22C55E;
 }
 
+body { margin: 0; }
+
 /* ── Scrollbar ────────────────────────────────────────────── */
 .custom-scrollbar::-webkit-scrollbar { width: 5px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

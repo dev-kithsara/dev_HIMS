@@ -16,8 +16,21 @@ export const submitSchema = z.object({
   category:z.string().trim().min(2).max(100), subcategory:z.string().trim().min(2).max(100), location:z.string().trim().min(2).max(200),
   departmentId:z.coerce.number().int().positive(), occurrenceAt:z.coerce.date(), draftId:z.coerce.number().int().positive().optional(),
 });
+const revisionChangesSchema = z.record(z.enum(['title','description','severity','category','subcategory','location','departmentId','occurrenceAt']), z.unknown()).superRefine((changes, context) => {
+  for (const [field, value] of Object.entries(changes)) {
+    const schema = field === 'title' ? z.string().trim().min(5).max(200)
+      : field === 'description' ? z.string().trim().min(10).max(5000)
+      : field === 'severity' ? z.nativeEnum(Severity)
+      : field === 'category' || field === 'subcategory' ? z.string().trim().min(2).max(100)
+      : field === 'location' ? z.string().trim().min(2).max(200)
+      : field === 'departmentId' ? z.coerce.number().int().positive()
+      : z.coerce.date();
+    if (!schema.safeParse(value).success) context.addIssue({ code: z.ZodIssueCode.custom, path: [field], message: `Invalid ${field}.` });
+  }
+});
+
 export const revisionSchema = z.object({
-  changes:z.record(z.enum(['title','description','severity','category','subcategory','location','departmentId','occurrenceAt']), z.unknown()),
+  changes:revisionChangesSchema,
   responseNote:z.string().trim().min(10).max(2000),
 });
 export const assistSchema = draftSchema.extend({ title:z.string().trim().max(200).default(''), description:z.string().trim().max(5000).default('') });

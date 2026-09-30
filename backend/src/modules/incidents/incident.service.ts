@@ -160,6 +160,26 @@ export class IncidentService {
 
     this.assertCanViewIncident(incident, actor);
 
+    // Staff may track their own report, but must not receive investigation,
+    // action, review, or other restricted workflow data from the legacy route.
+    if (actor.role === 'STAFF') {
+      return {
+        id: incident.id,
+        referenceId: incident.referenceId,
+        title: incident.title,
+        description: incident.description,
+        severity: incident.severity,
+        category: incident.category,
+        subcategory: incident.subcategory,
+        location: incident.location,
+        occurrenceAt: incident.occurrenceAt,
+        reportedAt: incident.reportedAt,
+        status: incident.status,
+        department: incident.department,
+        attachments: incident.attachments?.map(({ id, fileName, fileType, uploadedAt }) => ({ id, fileName, fileType, uploadedAt })) ?? [],
+      };
+    }
+
     return incident;
   }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '../context/AuthContext';
 import logoImage from '../assets/logo.jpeg';
@@ -7,6 +7,7 @@ export const Sidebar: React.FC = () => {
   const { user, logout } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
+  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to sign out?')) {
@@ -154,8 +155,18 @@ export const Sidebar: React.FC = () => {
   const links = getNavLinks();
 
   return (
+    <>
+      <button
+        type="button"
+        className="mobile-nav-toggle fixed left-3 top-3 z-[60] hidden h-10 w-10 rounded-lg bg-white text-[var(--k-navy)] shadow-md"
+        aria-label={isMobileMenuOpen ? 'Close navigation' : 'Open navigation'}
+        aria-expanded={isMobileMenuOpen}
+        onClick={() => setMobileMenuOpen((open) => !open)}
+      >
+        <span aria-hidden="true" className="text-xl">{isMobileMenuOpen ? '×' : '☰'}</span>
+      </button>
     <aside
-      className="w-64 h-screen flex flex-col shrink-0"
+      className={`app-sidebar w-64 h-screen flex flex-col shrink-0 ${isMobileMenuOpen ? 'app-sidebar-open' : ''}`}
       style={{
         backgroundColor: 'var(--k-sidebar-bg)',
         borderRight: '1px solid var(--k-sidebar-border)',
@@ -197,7 +208,7 @@ export const Sidebar: React.FC = () => {
           return (
             <button
               key={link.name}
-              onClick={() => navigate(link.path)}
+              onClick={() => { navigate(link.path); setMobileMenuOpen(false); }}
               className="w-full flex items-center gap-3.5 px-4 py-3 text-[15px] font-semibold rounded-xl transition-all cursor-pointer text-left"
               style={{
                 backgroundColor: isActive ? 'var(--k-sidebar-active)' : 'transparent',
@@ -254,5 +265,7 @@ export const Sidebar: React.FC = () => {
         </button>
       </div>
     </aside>
+    {isMobileMenuOpen && <button type="button" aria-label="Close navigation" className="mobile-nav-backdrop fixed inset-0 z-40 hidden bg-slate-950/35" onClick={() => setMobileMenuOpen(false)} />}
+    </>
   );
 };

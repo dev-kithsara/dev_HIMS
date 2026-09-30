@@ -32,6 +32,8 @@ services:
       JWT_EXPIRES_IN: "24h"
     depends_on:
       - postgres_db # Ensures DB starts before the backend
+    volumes:
+      - evidence_data:/app/uploads
     networks:
       - kairos_network
 
@@ -50,6 +52,7 @@ services:
 # Define persistent storage for the database
 volumes:
   postgres_data:
+  evidence_data:
 
 # Define a custom network so containers can talk to each other
 networks:

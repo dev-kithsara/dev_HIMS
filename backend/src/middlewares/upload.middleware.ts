@@ -1,6 +1,7 @@
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import { AppError } from "../utils/AppError";
 
 const storage = multer.diskStorage({
@@ -12,8 +13,8 @@ const storage = multer.diskStorage({
     },
 
     filename: (req, file, cb) => {
-        const uniqueName =
-            Date.now() + "-" + file.originalname;
+        const extension = path.extname(file.originalname).toLowerCase();
+        const uniqueName = `${Date.now()}-${crypto.randomUUID()}${extension}`;
 
         cb(null, uniqueName);
     }

@@ -213,17 +213,8 @@ export const Login: React.FC = () => {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs" style={{ color: MUTED }}>
-            Hospital Incident Management System &bull; Secure Platform
+            Hospital Incident &amp; Risk Management
           </p>
-          <div className="flex items-center justify-center gap-1.5 mt-2">
-            <span
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
-              style={{ backgroundColor: ROYAL }}
-            />
-            <span className="text-[10px] font-mono font-semibold" style={{ color: ROYAL }}>
-              SECURE CONNECTION
-            </span>
-          </div>
         </div>
       </div>
     </div>

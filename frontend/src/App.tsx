@@ -65,10 +65,14 @@ function App() {
                 <Route path="/my-incidents/:id" element={<StaffIncidentDetails />} />
                 <Route path="/submit-incident" element={<CreateIncident />} />
               </Route>
-              <Route path="/investigator" element={<InvestigatorDashboard />} />
-              <Route path="/investigator/:id" element={<InvestigatorWorkspace />} />
-              <Route path="/action-owner" element={<ActionOwnerDashboard />} />
-              <Route path="/action-owner/:id" element={<ActionOwnerIncidentDetails />} />
+              <Route element={<ProtectedRoute allowedRoles={['INVESTIGATOR']} />}>
+                <Route path="/investigator" element={<InvestigatorDashboard />} />
+                <Route path="/investigator/:id" element={<InvestigatorWorkspace />} />
+              </Route>
+              <Route element={<ProtectedRoute allowedRoles={['ACTION_OWNER']} />}>
+                <Route path="/action-owner" element={<ActionOwnerDashboard />} />
+                <Route path="/action-owner/:id" element={<ActionOwnerIncidentDetails />} />
+              </Route>
               <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
                 <Route path="/admin" element={<AdminDashboard />} />
               </Route>

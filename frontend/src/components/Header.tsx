@@ -9,17 +9,17 @@ export const Header: React.FC = () => {
 
   return (
     <header
-      className="h-16 flex items-center justify-end px-8 shrink-0"
+      className="min-h-16 flex items-center justify-end px-4 sm:px-8 py-3 shrink-0"
       style={{
         backgroundColor: 'var(--k-header-bg)',
         borderBottom: '1px solid var(--k-header-border)',
       }}
     >
       {/* Right Side: Profile Info */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         {/* User Info */}
-        <div className="flex flex-col items-end">
-          <span className="text-[15px] font-bold text-white leading-tight">
+        <div className="flex flex-col items-end min-w-0">
+          <span className="text-sm sm:text-[15px] font-bold text-white leading-tight truncate max-w-[14rem] sm:max-w-none">
             {user.role === 'ADMIN' ? 'All Departments' : getDepartmentName(user.departmentId)} &bull; {user.name}
           </span>
           <span
